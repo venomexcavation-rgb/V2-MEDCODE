@@ -1,24 +1,12 @@
 import type {
   ScenarioDefinition,
-  SimulationState,
   CheckResult,
-  MarchLetter,
-  MarchStatus,
 } from '@/engine/types';
 import { locationsMatch } from '@/lib/locations';
-import { scenario003 } from './scenario003';
 import {
   failedMassiveHemorrhageDeadline,
   MASSIVE_HEMORRHAGE_FAIL_REASON,
 } from '@/engine/hemorrhageDeadline';
-
-const INITIAL_MARCH: Record<MarchLetter, MarchStatus> = {
-  M: 'UNKNOWN',
-  A: 'UNKNOWN',
-  R: 'UNKNOWN',
-  C: 'UNKNOWN',
-  H: 'UNKNOWN',
-};
 
 function makeCheck(
   id: string,
@@ -43,59 +31,58 @@ function makeCheck(
   };
 }
 
-export const scenario001: ScenarioDefinition = {
-  id: 'SCENARIO-001',
-  title: 'Dismounted Blast Casualty',
+export const scenario003: ScenarioDefinition = {
+  id: 'SCENARIO-003',
+  title: 'Gunshot Wound — Urban',
   description:
-    'A dismounted patrol experiences an explosive blast. You reach one casualty with limited initial information.',
+    'Small-arms fire in an urban alley. You reach one casualty with limited initial information.',
   environment: 'Urban',
   difficulty: 'Intermediate',
-  mechanism: 'Blast / Penetrating Trauma',
+  mechanism: 'Penetrating Trauma',
   learningObjectives: [
-    'Identify and control life-threatening hemorrhage',
-    'Apply MARCH prioritization under time pressure',
-    'Perform systematic assessment and reassessment',
-    'Recognize shock progression',
+    'Identify and control extremity gunshot hemorrhage',
+    'Manage a penetrating chest wound on the correct side',
+    'Complete MARCH circulation after radial-pulse assessment',
   ],
-  estimatedMinutes: '8–12 min',
-  trainingFocus: ['Massive Hemorrhage', 'Shock', 'MARCH Sequencing'],
+  estimatedMinutes: '10–12 min',
+  trainingFocus: ['Hemorrhage Control', 'TCCC'],
   initialPresentation:
-    'Casualty found supine approximately 15 meters from blast site. Dust and debris visible. Casualty is moving but appears distressed.',
-  casualtyDemographics: 'UNKNOWN MALE — Approx. 25–30 years',
+    'Casualty found sitting against a wall in an alley after small-arms fire. Blood is visible on clothing. The casualty is moving, talking, and in pain.',
+  casualtyDemographics: 'UNKNOWN MALE — Approx. 20–30 years',
   initialState: {
-    scenarioId: 'SCENARIO-001',
+    scenarioId: 'SCENARIO-003',
     elapsedSeconds: 0,
     status: 'active',
     physiology: {
       consciousness: 'verbal',
       airwayPatent: true,
-      respiratoryRate: 22,
+      respiratoryRate: 24,
       respiratoryDistress: true,
       radialPulsePresent: true,
       radialPulseQuality: 'strong',
-      bloodLossMl: 200,
+      bloodLossMl: 250,
       shockState: 'compensated',
       skinSigns: 'Pale, diaphoretic',
-      mentalStatusNote: 'Agitated, oriented x1',
+      mentalStatusNote: 'Anxious, oriented x2',
     },
     injuries: [
       {
-        id: 'inj-left-lower-leg-amputation',
-        location: 'left_lower_leg',
-        type: 'traumatic_partial_amputation',
+        id: 'inj-right-thigh-gsw',
+        location: 'right_thigh',
+        type: 'gunshot_wound',
         severity: 'critical',
-        bleedingRateMlPerMin: 80,
+        bleedingRateMlPerMin: 70,
         controlled: false,
         packable: false,
         requiresTourniquet: true,
-        hiddenUntil: ['expose_left_leg', 'blood_sweep', 'assess_massive_hemorrhage'],
-        description: 'Traumatic partial amputation left lower leg with arterial hemorrhage',
+        hiddenUntil: ['expose_right_leg', 'blood_sweep', 'assess_massive_hemorrhage'],
+        description: 'Gunshot wound right thigh with arterial hemorrhage',
         discoveryDescription:
-          'There is a traumatic partial amputation approximately 10 cm below the knee with severe pulsatile bleeding.',
+          'A gunshot wound is present on the right thigh with bright red pulsatile bleeding.',
       },
       {
-        id: 'inj-right-chest-penetrating',
-        location: 'right_chest',
+        id: 'inj-left-chest-gsw',
+        location: 'left_chest',
         type: 'penetrating_chest_wound',
         severity: 'moderate',
         bleedingRateMlPerMin: 5,
@@ -103,58 +90,32 @@ export const scenario001: ScenarioDefinition = {
         packable: false,
         requiresTourniquet: false,
         hiddenUntil: ['expose_chest', 'check_penetrating_chest_trauma'],
-        description: 'Small penetrating chest wound with possible open pneumothorax',
+        description: 'Penetrating gunshot wound left chest',
         discoveryDescription:
-          'A small penetrating wound is visible on the right chest wall with a sucking sound on inspiration.',
-      },
-      {
-        id: 'inj-shrapnel-left-thigh',
-        location: 'left_thigh',
-        type: 'shrapnel_laceration',
-        severity: 'minor',
-        bleedingRateMlPerMin: 10,
-        controlled: false,
-        packable: true,
-        requiresTourniquet: false,
-        hiddenUntil: ['expose_left_leg', 'blood_sweep'],
-        description: 'Superficial shrapnel laceration left thigh',
-        discoveryDescription:
-          'Multiple small shrapnel lacerations on the left thigh with oozing bleeding.',
+          'A penetrating gunshot wound is visible on the left chest wall with a sucking sound on inspiration.',
       },
     ],
     findings: [
       {
-        id: 'finding-left-leg-hemorrhage',
-        label: 'Left lower leg arterial hemorrhage',
+        id: 'finding-right-thigh-hemorrhage',
+        label: 'Right thigh arterial gunshot hemorrhage',
         category: 'M',
-        location: 'left_lower_leg',
+        location: 'right_thigh',
         hidden: true,
         discovered: false,
-        discoveryConditions: ['expose_left_leg', 'blood_sweep', 'assess_massive_hemorrhage'],
-        observationText:
-          'Severe pulsatile bleeding from partial amputation of the left lower leg.',
+        discoveryConditions: ['expose_right_leg', 'blood_sweep', 'assess_massive_hemorrhage'],
+        observationText: 'Severe pulsatile bleeding from a gunshot wound to the right thigh.',
         marchImpact: 'CONCERN',
       },
       {
-        id: 'finding-right-chest-wound',
-        label: 'Penetrating chest wound (right)',
+        id: 'finding-left-chest-wound',
+        label: 'Penetrating chest wound (left)',
         category: 'R',
-        location: 'right_chest',
+        location: 'left_chest',
         hidden: true,
         discovered: false,
         discoveryConditions: ['expose_chest', 'check_penetrating_chest_trauma'],
-        observationText: 'Penetrating wound on right chest with sucking chest wound signs.',
-        marchImpact: 'CONCERN',
-      },
-      {
-        id: 'finding-left-thigh-shrapnel',
-        label: 'Left thigh shrapnel wounds',
-        category: 'M',
-        location: 'left_thigh',
-        hidden: true,
-        discovered: false,
-        discoveryConditions: ['expose_left_leg', 'blood_sweep'],
-        observationText: 'Superficial shrapnel wounds on left thigh with oozing.',
+        observationText: 'Penetrating gunshot wound on the left chest with sucking chest wound signs.',
         marchImpact: 'CONCERN',
       },
       {
@@ -164,7 +125,7 @@ export const scenario001: ScenarioDefinition = {
         hidden: false,
         discovered: false,
         discoveryConditions: ['assess_breathing', 'check_respirations'],
-        observationText: 'Respirations are rapid and labored at approximately 22/min.',
+        observationText: 'Respirations are rapid and labored at approximately 24/min.',
         marchImpact: 'CONCERN',
       },
       {
@@ -173,9 +134,8 @@ export const scenario001: ScenarioDefinition = {
         category: 'H',
         hidden: false,
         discovered: false,
-        discoveryConditions: ['expose_left_leg', 'expose_chest', 'expose_left_lower_leg', 'prevent_hypothermia'],
-        observationText:
-          'The casualty is exposed to the environment. Clothing is displaced and the ground is cool.',
+        discoveryConditions: ['expose_right_leg', 'expose_chest', 'prevent_hypothermia'],
+        observationText: 'The casualty is exposed to the environment. Clothing is bloody and the ground is cool.',
         marchImpact: 'CONCERN',
       },
       {
@@ -206,7 +166,7 @@ export const scenario001: ScenarioDefinition = {
       condition: (state) =>
         state.injuries.some((i) => i.requiresTourniquet && !i.controlled && i.bleedingRateMlPerMin > 0),
       apply: (state) => {
-        const injury = state.injuries.find((i) => i.id === 'inj-left-lower-leg-amputation');
+        const injury = state.injuries.find((i) => i.id === 'inj-right-thigh-gsw');
         if (!injury || injury.controlled) return {};
 
         const bloodLoss = state.physiology.bloodLossMl + injury.bleedingRateMlPerMin * 0.25;
@@ -236,7 +196,7 @@ export const scenario001: ScenarioDefinition = {
                 ? 'Unresponsive to verbal stimuli'
                 : consciousness === 'pain'
                   ? 'Responds only to painful stimuli'
-                  : 'Increasingly agitated and confused',
+                  : 'Increasingly anxious and confused',
           },
         };
       },
@@ -246,7 +206,7 @@ export const scenario001: ScenarioDefinition = {
       description: 'Untreated open chest wound worsens respiratory distress',
       intervalSeconds: 30,
       condition: (state) => {
-        const chestInjury = state.injuries.find((i) => i.id === 'inj-right-chest-penetrating');
+        const chestInjury = state.injuries.find((i) => i.id === 'inj-left-chest-gsw');
         return !!chestInjury && !chestInjury.controlled && !state.chestSealed;
       },
       apply: (state) => ({
@@ -275,7 +235,7 @@ export const scenario001: ScenarioDefinition = {
       category: 'critical',
       maxPoints: 5,
       critical: false,
-      detail: 'Initial AVPU (Alert, Verbal, Pain, Unresponsive) check performed.',
+      detail: 'Initial AVPU check performed.',
       teaching: 'Begin the encounter by assessing AVPU.',
       evaluate: (state) => {
         const done =
@@ -307,12 +267,12 @@ export const scenario001: ScenarioDefinition = {
           'Massive hemorrhage identified',
           'hemorrhage',
           20,
-          state.discoveredFindingIds.includes('finding-left-leg-hemorrhage'),
+          state.discoveredFindingIds.includes('finding-right-thigh-hemorrhage'),
           true,
-          state.discoveredFindingIds.includes('finding-left-leg-hemorrhage')
-            ? 'Left lower leg arterial hemorrhage was identified.'
-            : 'Failed to identify life-threatening hemorrhage on left lower leg.',
-          'Perform blood sweep and expose extremities to find hidden hemorrhage.',
+          state.discoveredFindingIds.includes('finding-right-thigh-hemorrhage')
+            ? 'Right thigh arterial gunshot hemorrhage was identified.'
+            : 'Failed to identify life-threatening hemorrhage on the right thigh.',
+          'Perform blood sweep and expose the right leg to find hidden hemorrhage.',
         ),
     },
     {
@@ -321,7 +281,7 @@ export const scenario001: ScenarioDefinition = {
       category: 'hemorrhage',
       maxPoints: 25,
       critical: true,
-      detail: 'Tourniquet applied to correct extremity.',
+      detail: 'Tourniquet applied to the correct extremity.',
       teaching: 'Apply tourniquet high and tight on the correct extremity for arterial hemorrhage.',
       evaluate: (state) => {
         const correctTq = state.interventions.some(
@@ -329,7 +289,7 @@ export const scenario001: ScenarioDefinition = {
             i.type === 'apply_tourniquet' &&
             i.effective &&
             i.location &&
-            locationsMatch(i.location, 'left_lower_leg'),
+            locationsMatch(i.location, 'right_thigh'),
         );
         return makeCheck(
           'score-tq-applied',
@@ -339,9 +299,9 @@ export const scenario001: ScenarioDefinition = {
           correctTq,
           true,
           correctTq
-            ? 'Tourniquet effectively applied to left leg.'
+            ? 'Tourniquet effectively applied to the right thigh.'
             : 'Tourniquet not applied correctly to the bleeding extremity.',
-          'For partial amputation with arterial bleed, apply tourniquet high and tight above the wound.',
+          'For a thigh GSW with arterial bleed, apply tourniquet high and tight above the wound.',
         );
       },
     },
@@ -502,7 +462,7 @@ export const scenario001: ScenarioDefinition = {
       detail: 'Penetrating chest wound treated if discovered.',
       teaching: 'Apply occlusive dressing to open chest wounds on the correct side.',
       evaluate: (state) => {
-        const discovered = state.discoveredFindingIds.includes('finding-right-chest-wound');
+        const discovered = state.discoveredFindingIds.includes('finding-left-chest-wound');
         if (!discovered) {
           return makeCheck(
             'score-chest-seal',
@@ -523,7 +483,7 @@ export const scenario001: ScenarioDefinition = {
           15,
           sealed,
           false,
-          sealed ? 'Chest seal applied to right chest wound.' : 'Penetrating chest wound not sealed.',
+          sealed ? 'Chest seal applied to left chest wound.' : 'Penetrating chest wound not sealed.',
           'Apply chest seal to all discovered open chest wounds.',
         );
       },
@@ -535,7 +495,7 @@ export const scenario001: ScenarioDefinition = {
       maxPoints: 10,
       critical: false,
       detail: 'Perfusion status evaluated.',
-      teaching: 'Check radial pulse and perfusion after addressing immediate threats.',
+      teaching: 'Assess radial pulses before initiating IV access.',
       evaluate: (state) =>
         makeCheck(
           'score-circulation',
@@ -548,7 +508,7 @@ export const scenario001: ScenarioDefinition = {
           state.performedAssessments.includes('check_radial_pulse')
             ? 'Radial pulse assessed.'
             : 'Circulation not fully assessed.',
-          'Assess radial pulses before initiating IV access. Absent radials require 450 mL low titer O whole blood after the saline lock.',
+          'Assess radial pulses before initiating IV access.',
         ),
     },
     {
@@ -558,20 +518,18 @@ export const scenario001: ScenarioDefinition = {
       maxPoints: 10,
       critical: false,
       detail: 'Vascular access established with a saline lock.',
-      teaching: 'Circulation step 1: initiate a saline lock before administering TXA.',
-      evaluate: (state) => {
-        const done = state.salineLockInitiated;
-        return makeCheck(
+      teaching: 'Initiate a saline lock. This is required whether or not whole blood is given.',
+      evaluate: (state) =>
+        makeCheck(
           'score-circulation-access',
           'Saline lock initiated',
           'circulation',
           10,
-          done,
+          state.salineLockInitiated,
           false,
-          done ? 'Saline lock was initiated.' : 'A saline lock was not initiated.',
-          'Initiate a saline lock. This is required for circulation whether or not whole blood is given.',
-        );
-      },
+          state.salineLockInitiated ? 'Saline lock was initiated.' : 'A saline lock was not initiated.',
+          'Initiate a saline lock to begin circulation.',
+        ),
     },
     {
       id: 'score-circulation-txa',
@@ -580,24 +538,20 @@ export const scenario001: ScenarioDefinition = {
       maxPoints: 15,
       critical: false,
       detail: 'TXA given through the saline lock.',
-      teaching: 'Circulation step 2: after the saline lock, administer 2 grams TXA.',
-      evaluate: (state) => {
-        const done = state.txaAdministered;
-        return makeCheck(
+      teaching: 'After the saline lock, administer 2 grams TXA.',
+      evaluate: (state) =>
+        makeCheck(
           'score-circulation-txa',
           '2 grams TXA administered',
           'circulation',
           15,
-          done,
+          state.txaAdministered,
           false,
-          done
+          state.txaAdministered
             ? '2 grams of TXA was administered through the saline lock.'
-            : state.salineLockInitiated
-              ? 'Saline lock is in place, but 2 grams TXA was not administered.'
-              : '2 grams TXA was not administered. Initiate a saline lock first.',
+            : '2 grams TXA was not administered.',
           'After the saline lock, administer 2 grams TXA.',
-        );
-      },
+        ),
     },
     {
       id: 'score-circulation-whole-blood',
@@ -607,7 +561,7 @@ export const scenario001: ScenarioDefinition = {
       critical: false,
       detail: '450 mL low titer O whole blood if radial pulses are absent.',
       teaching:
-        'If radial pulses are absent after hypovolemic shock, administer 450 mL of low titer O whole blood through the saline lock. If radials are present, this step may be skipped.',
+        'If radial pulses are absent, administer 450 mL of low titer O whole blood through the saline lock.',
       evaluate: (state) => {
         if (state.radialPulseFinding === 'present') {
           return makeCheck(
@@ -633,15 +587,14 @@ export const scenario001: ScenarioDefinition = {
             'Assess radial pulses before deciding on whole blood.',
           );
         }
-        const done = state.wholeBloodAdministered;
         return makeCheck(
           'score-circulation-whole-blood',
           'Whole blood when radial pulses absent',
           'circulation',
           15,
-          done,
+          state.wholeBloodAdministered,
           false,
-          done
+          state.wholeBloodAdministered
             ? '450 mL of low titer O whole blood was administered.'
             : 'Radial pulses were absent, but 450 mL low titer O whole blood was not administered.',
           'After the saline lock, administer 450cc or 450mL of low titer O whole blood.',
@@ -684,7 +637,7 @@ export const scenario001: ScenarioDefinition = {
           (i) =>
             i.type === 'apply_tourniquet' &&
             i.location &&
-            (i.location === 'right_leg' || i.location === 'right_thigh' || i.location === 'right_lower_leg'),
+            (i.location === 'left_leg' || i.location === 'left_thigh' || i.location === 'left_lower_leg'),
         );
         return makeCheck(
           'score-wrong-side',
@@ -798,7 +751,7 @@ export const scenario001: ScenarioDefinition = {
       requiredActions: ['apply_tourniquet'],
       requireEffective: true,
       requireLocation: true,
-      targetLocation: 'left_lower_leg',
+      targetLocation: 'right_thigh',
     },
     {
       ruleId: 'TCCC-M-001',
@@ -806,12 +759,12 @@ export const scenario001: ScenarioDefinition = {
       requiredActions: ['apply_tourniquet'],
       requireEffective: true,
       requireLocation: true,
-      targetLocation: 'left_lower_leg',
+      targetLocation: 'right_thigh',
     },
     {
       ruleId: 'TCCC-M-002',
       kind: 'finding_discovered',
-      findingId: 'finding-left-leg-hemorrhage',
+      findingId: 'finding-right-thigh-hemorrhage',
     },
     {
       ruleId: 'TCCC-A-001',
@@ -829,8 +782,8 @@ export const scenario001: ScenarioDefinition = {
       requiredActions: ['apply_chest_seal'],
       requireEffective: true,
       requireLocation: true,
-      targetLocation: 'right_chest',
-      requiresDiscoveredFindingId: 'finding-right-chest-wound',
+      targetLocation: 'left_chest',
+      requiresDiscoveredFindingId: 'finding-left-chest-wound',
     },
     {
       ruleId: 'TCCC-C-001',
@@ -861,37 +814,24 @@ export const scenario001: ScenarioDefinition = {
       requiredActions: ['request_evacuation'],
     },
   ],
+  quickActionGroups: [
+    { label: 'Assess', commands: ['Checking AVPU', 'Check for massive hemorrhage', 'Assess airway', 'Assess breathing', 'Check radial pulse'] },
+    { label: 'Expose', commands: ['Expose the right leg', 'Expose the chest'] },
+    {
+      label: 'Intervention',
+      commands: [
+        'Apply tourniquet high and tight to the right leg',
+        'Hasty tourniquet applied to leg',
+        'Apply chest seal to left chest',
+        'Initiate IV access',
+        'Initiate saline lock',
+        'Administer 2 grams TXA',
+        'Administer 450mL of low titer O whole blood',
+        'Prevent hypothermia',
+      ],
+    },
+    { label: 'Reassess', commands: ['Reassess bleeding', 'Reassess all interventions', 'Reassess breathing', 'Reassess circulation'] },
+    { label: 'Complete', commands: ['Initiate tactical evacuation', 'End scenario'] },
+  ],
 };
 
-export function createInitialState(scenario: ScenarioDefinition): SimulationState {
-  return {
-    ...scenario.initialState,
-    events: [],
-    discoveredFindingIds: [],
-    performedAssessments: [],
-    interventions: [],
-    dialogueHistory: [
-      'Casualty (groaning): "Help… help me…"',
-    ],
-    marchStatus: { ...INITIAL_MARCH },
-  };
-}
-
-export const SCENARIOS: ScenarioDefinition[] = [scenario001, scenario003];
-
-export function getScenarioById(id: string): ScenarioDefinition | undefined {
-  return SCENARIOS.find((s) => s.id === id || s.id.replace(/-/g, '') === id.replace(/-/g, ''));
-}
-
-export const PLACEHOLDER_SCENARIOS = [
-  {
-    id: 'SCENARIO-002',
-    title: 'Vehicle Roll-Over',
-    environment: 'Mounted',
-    difficulty: 'Advanced' as const,
-    mechanism: 'Mechanism of Injury: Blunt Trauma',
-    trainingFocus: ['Spinal Precautions', 'Multi-system Trauma'],
-    estimatedMinutes: '12–15 min',
-    available: false,
-  },
-];

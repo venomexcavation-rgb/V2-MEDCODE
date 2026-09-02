@@ -8,6 +8,17 @@ import type {
 } from './types';
 import { locationsMatch, type AnatomicalLocation } from '@/lib/locations';
 import { generateAAR } from './aar';
+import { getAvpuResult, hasAssessedAvpu } from './avpu';
+import { hasAssessedRadialPulse, isCirculationComplete, isWholeBloodRequired } from './circulation';
+import {
+  failedMassiveHemorrhageDeadline,
+  MASSIVE_HEMORRHAGE_FAIL_REASON,
+} from './hemorrhageDeadline';
+import {
+  buildInterventionReassessment,
+  hasCompletedPreEvacReassessment,
+  PRE_EVAC_REASSESS_PROMPT,
+} from './reassessment';
 
 let eventCounter = 0;
 
@@ -32,6 +43,38 @@ function createEvent(
     message,
     ...extras,
   };
+}
+
+function locationLabel(location: AnatomicalLocation | undefined): string {
+  return (location ?? 'wound').replace(/_/g, ' ');
+}
+
+function massiveHemorrhageFindings(state: SimulationState) {
+  return state.findings.filter((f) => {
+    if (f.category !== 'M' || !f.location) return false;
+    return state.injuries.some((i) => i.requiresTourniquet && locationsMatch(f.location, i.location));
+  });
+}
+
+function resolveTourniquetLocation(
+  state: SimulationState,
+  action: StructuredAction,
+): AnatomicalLocation | undefined {
+  if (action.location && action.location !== 'unknown') return action.location;
+  if (action.parameters?.target !== 'affected_limb') return undefined;
+
+  const discovered = massiveHemorrhageFindings(state).find(
+    (f) => state.discoveredFindingIds.includes(f.id) && f.location,
+  );
+  if (discovered?.location) return discovered.location;
+
+  return state.injuries.find((i) => i.requiresTourniquet && !i.controlled)?.location;
+}
+
+function openChestFindings(state: SimulationState) {
+  return state.findings.filter(
+    (f) => f.category === 'R' && !!f.location && (f.location.includes('chest') || f.location === 'chest'),
+  );
 }
 
 function assessmentKey(type: StructuredAction['type'], location?: AnatomicalLocation): string {
@@ -95,17 +138,24 @@ function updateMarchStatus(state: SimulationState): Record<MarchLetter, MarchSta
     'A',
     state.performedAssessments.includes('assess_airway') && state.physiology.airwayPatent,
   );
-  updateLetter(
-    'R',
-    state.chestSealed || !state.discoveredFindingIds.includes('finding-right-chest-wound'),
+  const openChestDiscovered = openChestFindings(state).some((f) =>
+    state.discoveredFindingIds.includes(f.id),
   );
-  updateLetter(
-    'C',
-    state.performedAssessments.includes('check_radial_pulse') &&
-      state.physiology.radialPulsePresent &&
-      state.physiology.shockState === 'none',
-  );
-  updateLetter('H', state.performedAssessments.includes('assess_circulation'));
+  updateLetter('R', state.chestSealed || !openChestDiscovered);
+
+  const circulationComplete = isCirculationComplete(state);
+  updateLetter('C', circulationComplete);
+  if (march.C === 'CONCERN' && circulationComplete) {
+    march.C = 'STABLE';
+  }
+
+  const hypothermiaPrevented =
+    state.hypothermiaPreventionApplied ||
+    state.performedAssessments.includes('prevent_hypothermia');
+  updateLetter('H', hypothermiaPrevented);
+  if (march.H === 'CONCERN' && hypothermiaPrevented) {
+    march.H = 'STABLE';
+  }
 
   if (march.M === 'CONCERN' && hemorrhageControlled) march.M = 'STABLE';
 
@@ -123,7 +173,10 @@ function getCasualtyDialogue(state: SimulationState): string | undefined {
   if (respiratoryDistress) {
     return 'Casualty (gasping): "Can\'t… breathe…"';
   }
-  if (state.discoveredFindingIds.includes('finding-left-leg-hemorrhage') && !state.hemorrhageControlledAt) {
+  if (
+    massiveHemorrhageFindings(state).some((f) => state.discoveredFindingIds.includes(f.id)) &&
+    !state.hemorrhageControlledAt
+  ) {
     return 'Casualty (screaming): "Fuck—that hurts! My leg!"';
   }
   if (consciousness === 'confused' || consciousness === 'verbal') {
@@ -159,6 +212,15 @@ function checkCompletion(
   state: SimulationState,
   scenario: ScenarioDefinition,
 ): SimulationState {
+  if (failedMassiveHemorrhageDeadline(state)) {
+    const failed = {
+      ...state,
+      status: 'failed' as const,
+      completionReason: MASSIVE_HEMORRHAGE_FAIL_REASON,
+    };
+    return { ...failed, aar: generateAAR(failed, scenario) };
+  }
+
   for (const criteria of scenario.failureCriteria) {
     if (criteria.check(state)) {
       const aar = generateAAR({ ...state, status: 'failed' }, scenario);
@@ -218,13 +280,19 @@ export function executeAction(
   newState = { ...newState, performedAssessments: performed };
 
   switch (action.type) {
+    case 'assess_avpu':
     case 'check_responsiveness': {
-      messages.push(
-        `You attempt to get the casualty's attention. The casualty groans and moves slightly — responsive to verbal stimuli but appears confused and in distress.`,
-      );
+      const avpu = getAvpuResult(newState.physiology.consciousness);
+      const alreadyAssessed = hasAssessedAvpu(state);
+      if (alreadyAssessed) {
+        messages.push(`AVPU already assessed. Current finding: ${avpu.summary}. ${avpu.observation}`);
+      } else {
+        messages.push('You assess AVPU (Alert, Verbal, Pain, Unresponsive).');
+        messages.push(`${avpu.summary}. ${avpu.observation}`);
+      }
       newState.events = [
         ...newState.events,
-        createEvent(newState, action.type, 'info', 'Responsiveness assessed — casualty responds to verbal stimuli.'),
+        createEvent(newState, action.type, 'info', `AVPU assessed — ${avpu.summary}.`),
       ];
       break;
     }
@@ -253,7 +321,10 @@ export function executeAction(
       const discovery = discoverFindings(newState, 'blood_sweep');
       newState = discovery.state;
       messages.push(...discovery.messages);
-      if (discovery.discovered.includes('finding-left-leg-hemorrhage') && !newState.massiveHemorrhageIdentifiedAt) {
+      if (
+        massiveHemorrhageFindings(newState).some((f) => discovery.discovered.includes(f.id)) &&
+        !newState.massiveHemorrhageIdentifiedAt
+      ) {
         newState.massiveHemorrhageIdentifiedAt = newState.elapsedSeconds;
       }
       newState.events = [
@@ -276,10 +347,13 @@ export function executeAction(
       const discovery = discoverFindings(newState, exposeKey);
       newState = discovery.state;
       // Generic expose for leg
-      if (loc.includes('leg')) {
-        const legDiscovery = discoverFindings(newState, 'expose_left_leg');
-        newState = legDiscovery.state;
-        messages.push(...legDiscovery.messages);
+      if (loc.includes('leg') || loc.includes('thigh') || loc.includes('foot')) {
+        const side = loc.startsWith('left') ? 'left' : loc.startsWith('right') ? 'right' : undefined;
+        if (side) {
+          const legDiscovery = discoverFindings(newState, `expose_${side}_leg`);
+          newState = legDiscovery.state;
+          messages.push(...legDiscovery.messages);
+        }
       }
       if (loc.includes('chest') || loc === 'chest') {
         const chestDiscovery = discoverFindings(newState, 'expose_chest');
@@ -295,7 +369,11 @@ export function executeAction(
     }
 
     case 'apply_tourniquet': {
-      const loc = action.location!;
+      const loc = resolveTourniquetLocation(newState, action);
+      if (!loc) {
+        messages.push('Specify which extremity is receiving the tourniquet.');
+        break;
+      }
       const targetInjury = newState.injuries.find(
         (i) => i.requiresTourniquet && locationsMatch(loc, i.location),
       );
@@ -345,13 +423,17 @@ export function executeAction(
         break;
       }
 
-      if (!newState.discoveredFindingIds.includes('finding-left-leg-hemorrhage')) {
+      const relatedHemorrhage = massiveHemorrhageFindings(newState).find(
+        (f) => f.location && locationsMatch(loc, f.location),
+      );
+      if (relatedHemorrhage && !newState.discoveredFindingIds.includes(relatedHemorrhage.id)) {
         messages.push(
-          `You apply a tourniquet to the ${loc.replace(/_/g, ' ')}. Without proper exposure, placement may be suboptimal.`,
+          `You apply a tourniquet to the ${locationLabel(loc)}. Without proper exposure, placement may be suboptimal.`,
         );
       }
 
-      const highAndTight = action.parameters?.placement === 'high_and_tight' || /high/i.test(action.rawInput);
+      const highAndTight =
+        action.parameters?.placement === 'high_and_tight' || /high|hasty/i.test(action.rawInput);
       newState.injuries = newState.injuries.map((i) =>
         i.id === targetInjury.id ? { ...i, controlled: true, bleedingRateMlPerMin: 0 } : i,
       );
@@ -435,7 +517,10 @@ export function executeAction(
         ];
         break;
       }
-      if (!newState.discoveredFindingIds.includes('finding-right-chest-wound')) {
+      const chestFinding = openChestFindings(newState).find(
+        (f) => f.location && locationsMatch(loc, f.location),
+      );
+      if (chestFinding && !newState.discoveredFindingIds.includes(chestFinding.id)) {
         messages.push(`You attempt to seal the chest, but the wound has not been adequately exposed or identified.`);
         break;
       }
@@ -513,6 +598,7 @@ export function executeAction(
     case 'reassess_circulation': {
       const discovery = discoverFindings(newState, 'check_radial_pulse');
       newState = discovery.state;
+      newState.radialPulseFinding = newState.physiology.radialPulsePresent ? 'present' : 'absent';
       const pulse = newState.physiology.radialPulsePresent
         ? `Radial pulse is ${newState.physiology.radialPulseQuality}.`
         : 'Radial pulse is absent.';
@@ -530,10 +616,11 @@ export function executeAction(
 
     case 'reassess_hemorrhage': {
       const criticalInjury = newState.injuries.find((i) => i.requiresTourniquet);
+      const site = locationLabel(criticalInjury?.location);
       if (criticalInjury?.controlled) {
-        messages.push(`Reassessment: No active bleeding from the left lower leg. Tourniquet appears effective.`);
+        messages.push(`Reassessment: Bleeding has stopped at the ${site}. Tourniquet appears effective.`);
       } else if (criticalInjury) {
-        messages.push(`Reassessment: Severe bleeding continues from the left lower leg. Hemorrhage is NOT controlled.`);
+        messages.push(`Reassessment: Bleeding has continued from the ${site}. Hemorrhage is NOT controlled.`);
       } else {
         messages.push(`Reassessment: No uncontrolled massive hemorrhage identified.`);
       }
@@ -545,22 +632,261 @@ export function executeAction(
     }
 
     case 'reassess_general': {
-      messages.push(`You perform a general reassessment of the casualty's condition.`);
-      messages.push(
-        `Mental status: ${newState.physiology.mentalStatusNote}. Pulse: ${newState.physiology.radialPulsePresent ? newState.physiology.radialPulseQuality : 'absent'}.`,
-      );
+      messages.push('You reassess all interventions before tactical evacuation.');
+      const findings = buildInterventionReassessment(newState);
+      messages.push(...findings);
+      newState.preEvacReassessmentAt = newState.elapsedSeconds;
       newState.events = [
         ...newState.events,
-        createEvent(newState, action.type, 'info', 'General reassessment completed.'),
+        createEvent(newState, action.type, 'info', 'All interventions reassessed.', {
+          stateChanges: ['pre_evac_reassessment'],
+        }),
       ];
       break;
     }
 
     case 'request_evacuation': {
-      messages.push(`You request evacuation. MEDEVAC coordination initiated. Continue monitoring the casualty.`);
+      if (!hasCompletedPreEvacReassessment(newState)) {
+        messages.push(PRE_EVAC_REASSESS_PROMPT);
+        newState.performedAssessments = newState.performedAssessments.filter(
+          (item) => item !== 'request_evacuation',
+        );
+        newState.events = [
+          ...newState.events,
+          createEvent(newState, action.type, 'failure', PRE_EVAC_REASSESS_PROMPT),
+        ];
+        break;
+      }
+      messages.push('All interventions reassessed. Tactical evacuation initiated.');
       newState.events = [
         ...newState.events,
-        createEvent(newState, action.type, 'success', 'Evacuation requested.'),
+        createEvent(newState, action.type, 'success', 'Tactical evacuation initiated.', {
+          interventionEffective: true,
+        }),
+      ];
+      break;
+    }
+
+    case 'end_scenario': {
+      messages.push(`You end the scenario and prepare the casualty for handoff.`);
+      newState.events = [
+        ...newState.events,
+        createEvent(newState, action.type, 'success', 'Scenario ended by trainee.'),
+      ];
+      break;
+    }
+
+    case 'initiate_iv_access': {
+      if (!hasAssessedRadialPulse(state)) {
+        messages.push('Assess for radial pulses before initiating IV access.');
+        newState.events = [
+          ...newState.events,
+          createEvent(newState, action.type, 'failure', 'IV withheld — radial pulses not assessed.'),
+        ];
+        break;
+      }
+      if (newState.ivAccessInitiated || newState.salineLockInitiated) {
+        messages.push(
+          newState.ivAccessInitiated
+            ? 'IV access is already initiated.'
+            : 'Vascular access is already in place via saline lock.',
+        );
+      } else {
+        newState.ivAccessInitiated = true;
+        newState.interventions = [
+          ...newState.interventions,
+          {
+            id: nextEventId(),
+            type: action.type,
+            timestamp: newState.elapsedSeconds,
+            effective: true,
+          },
+        ];
+        messages.push('You initiate IV access.');
+      }
+      newState.events = [
+        ...newState.events,
+        createEvent(newState, action.type, 'success', 'IV access initiated.', {
+          interventionEffective: true,
+          stateChanges: ['iv_access'],
+        }),
+      ];
+      break;
+    }
+
+    case 'initiate_saline_lock': {
+      if (newState.salineLockInitiated) {
+        messages.push('A saline lock is already in place.');
+      } else {
+        newState.salineLockInitiated = true;
+        newState.interventions = [
+          ...newState.interventions,
+          {
+            id: nextEventId(),
+            type: action.type,
+            timestamp: newState.elapsedSeconds,
+            effective: true,
+          },
+        ];
+        messages.push('You initiate a saline lock.');
+      }
+      newState.events = [
+        ...newState.events,
+        createEvent(newState, action.type, 'success', 'Saline lock initiated.', {
+          interventionEffective: true,
+          stateChanges: ['saline_lock'],
+        }),
+      ];
+      break;
+    }
+
+    case 'administer_txa': {
+      const doseGrams = typeof action.parameters?.doseGrams === 'number' ? action.parameters.doseGrams : undefined;
+      if (!newState.salineLockInitiated) {
+        messages.push('Initiate a saline lock before administering TXA.');
+        newState.events = [
+          ...newState.events,
+          createEvent(newState, action.type, 'failure', 'TXA withheld — saline lock not initiated.'),
+        ];
+        break;
+      }
+      if (doseGrams !== 2) {
+        messages.push('Specify the TXA dose. Use: administer 2 grams TXA.');
+        newState.events = [
+          ...newState.events,
+          createEvent(newState, action.type, 'failure', 'TXA withheld — 2 gram dose not specified.'),
+        ];
+        break;
+      }
+      if (newState.txaAdministered) {
+        messages.push('2 grams of TXA has already been administered.');
+        newState.events = [
+          ...newState.events,
+          createEvent(newState, action.type, 'info', 'TXA already administered.', {
+            interventionEffective: true,
+            stateChanges: ['txa'],
+          }),
+        ];
+        break;
+      }
+      newState.txaAdministered = true;
+      newState.interventions = [
+        ...newState.interventions,
+        {
+          id: nextEventId(),
+          type: action.type,
+          timestamp: newState.elapsedSeconds,
+          effective: true,
+          parameters: { doseGrams: 2 },
+        },
+      ];
+      messages.push('You administer 2 grams of TXA through the saline lock.');
+      newState.events = [
+        ...newState.events,
+        createEvent(newState, action.type, 'success', '2 grams TXA administered through saline lock.', {
+          interventionEffective: true,
+          stateChanges: ['txa'],
+        }),
+      ];
+      break;
+    }
+
+    case 'administer_whole_blood': {
+      const volumeMl = typeof action.parameters?.volumeMl === 'number' ? action.parameters.volumeMl : undefined;
+      if (!hasAssessedRadialPulse(state)) {
+        messages.push('Assess for radial pulses before administering whole blood.');
+        newState.events = [
+          ...newState.events,
+          createEvent(newState, action.type, 'failure', 'Whole blood withheld — radial pulses not assessed.'),
+        ];
+        break;
+      }
+      if (!isWholeBloodRequired(newState)) {
+        messages.push(
+          'Radial pulses are present. Whole blood is not required; you may skip this step.',
+        );
+        newState.events = [
+          ...newState.events,
+          createEvent(newState, action.type, 'info', 'Whole blood not required — radial pulses present.'),
+        ];
+        break;
+      }
+      if (!newState.salineLockInitiated) {
+        messages.push('Initiate a saline lock before administering whole blood.');
+        newState.events = [
+          ...newState.events,
+          createEvent(newState, action.type, 'failure', 'Whole blood withheld — saline lock not initiated.'),
+        ];
+        break;
+      }
+      if (volumeMl !== 450) {
+        messages.push(
+          'Specify 450 cc or 450 mL. Use: Administer 450cc of low titer O whole blood or Administer 450mL of low titer O whole blood.',
+        );
+        newState.events = [
+          ...newState.events,
+          createEvent(newState, action.type, 'failure', 'Whole blood withheld — 450 mL volume not specified.'),
+        ];
+        break;
+      }
+      if (newState.wholeBloodAdministered) {
+        messages.push('450 mL of low titer O whole blood has already been administered.');
+        newState.events = [
+          ...newState.events,
+          createEvent(newState, action.type, 'info', 'Whole blood already administered.', {
+            interventionEffective: true,
+            stateChanges: ['whole_blood'],
+          }),
+        ];
+        break;
+      }
+      newState.wholeBloodAdministered = true;
+      newState.interventions = [
+        ...newState.interventions,
+        {
+          id: nextEventId(),
+          type: action.type,
+          timestamp: newState.elapsedSeconds,
+          effective: true,
+          parameters: { volumeMl: 450 },
+        },
+      ];
+      messages.push('You administer 450 mL of low titer O whole blood through the saline lock.');
+      newState.events = [
+        ...newState.events,
+        createEvent(newState, action.type, 'success', '450 mL low titer O whole blood administered.', {
+          interventionEffective: true,
+          stateChanges: ['whole_blood'],
+        }),
+      ];
+      break;
+    }
+
+    case 'prevent_hypothermia': {
+      if (newState.hypothermiaPreventionApplied) {
+        messages.push(`Hypothermia prevention measures are already in place.`);
+      } else {
+        newState.hypothermiaPreventionApplied = true;
+        newState.interventions = [
+          ...newState.interventions,
+          {
+            id: nextEventId(),
+            type: action.type,
+            timestamp: newState.elapsedSeconds,
+            effective: true,
+            notes: 'Cover / insulation applied',
+          },
+        ];
+        messages.push(
+          `You cover the casualty and place insulation between the casualty and the ground. Exposed skin is protected.`,
+        );
+      }
+      newState.events = [
+        ...newState.events,
+        createEvent(newState, action.type, 'success', 'Hypothermia prevention applied.', {
+          interventionEffective: true,
+          stateChanges: ['hypothermia_prevention'],
+        }),
       ];
       break;
     }
@@ -582,6 +908,9 @@ export function executeAction(
   }
 
   newState = checkCompletion(newState, scenario);
+  if (newState.status === 'failed' && newState.completionReason) {
+    messages.push(newState.completionReason);
+  }
 
   return { state: newState, messages };
 }

@@ -1,5 +1,6 @@
 import type { SimulationState } from '@/engine/types';
 import type { ScenarioDefinition } from '@/engine/types';
+import { getAvpuResult, hasAssessedAvpu } from '@/engine/avpu';
 
 interface CasualtyPanelProps {
   state: SimulationState;
@@ -11,7 +12,7 @@ function NotAssessed() {
 }
 
 export function CasualtyPanel({ state, scenario }: CasualtyPanelProps) {
-  const hasAssessedResponsiveness = state.performedAssessments.includes('check_responsiveness');
+  const hasAssessedAvpuCheck = hasAssessedAvpu(state);
   const hasAssessedPulse =
     state.performedAssessments.includes('check_radial_pulse') ||
     state.performedAssessments.includes('assess_circulation');
@@ -50,9 +51,9 @@ export function CasualtyPanel({ state, scenario }: CasualtyPanelProps) {
       </div>
 
       <div className="info-row">
-        <span className="info-label">Responsiveness</span>
-        {hasAssessedResponsiveness ? (
-          <span className="info-value">{state.physiology.consciousness.toUpperCase()}</span>
+        <span className="info-label">AVPU</span>
+        {hasAssessedAvpuCheck ? (
+          <span className="info-value">{getAvpuResult(state.physiology.consciousness).summary.toUpperCase()}</span>
         ) : (
           <NotAssessed />
         )}
@@ -96,6 +97,46 @@ export function CasualtyPanel({ state, scenario }: CasualtyPanelProps) {
         <span className="info-label">Skin</span>
         {hasAssessedPulse ? (
           <span className="info-value">{state.physiology.skinSigns}</span>
+        ) : (
+          <NotAssessed />
+        )}
+      </div>
+
+      <div className="info-row">
+        <span className="info-label">Vascular access</span>
+        {state.ivAccessInitiated ? (
+          <span className="info-value">IV INITIATED</span>
+        ) : state.salineLockInitiated ? (
+          <span className="info-value">SALINE LOCK INITIATED</span>
+        ) : (
+          <NotAssessed />
+        )}
+      </div>
+
+      <div className="info-row">
+        <span className="info-label">TXA</span>
+        {state.txaAdministered ? (
+          <span className="info-value">2 GRAMS ADMINISTERED</span>
+        ) : (
+          <NotAssessed />
+        )}
+      </div>
+
+      <div className="info-row">
+        <span className="info-label">Whole blood</span>
+        {state.wholeBloodAdministered ? (
+          <span className="info-value">450 ML LTOWB</span>
+        ) : state.radialPulseFinding === 'present' ? (
+          <span className="info-value">NOT INDICATED</span>
+        ) : (
+          <NotAssessed />
+        )}
+      </div>
+
+      <div className="info-row">
+        <span className="info-label">Hypothermia prevention</span>
+        {state.hypothermiaPreventionApplied ? (
+          <span className="info-value">COVERED / INSULATED</span>
         ) : (
           <NotAssessed />
         )}

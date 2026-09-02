@@ -1,0 +1,27 @@
+---
+description: 68W simulator architecture and deterministic engine rules for Cursor agents
+globs:
+  - src/**
+  - AGENTS.md
+alwaysApply: false
+---
+
+# 68W Training Simulator — Cursor Rules
+
+This is a **training simulator**, not clinical software.
+
+## Architecture
+
+- Scenario data: `src/scenarios/`
+- Action parser: `src/engine/actionParser.ts`
+- Simulation engine (medical truth): `src/engine/simulationEngine.ts`
+- AAR scoring: `src/engine/aar.ts`
+
+## Critical constraints
+
+1. Never let AI/LLM decide injuries, findings, deterioration, intervention outcomes, or scores.
+2. UI must never leak hidden simulation state — use NOT ASSESSED until discovered.
+3. Use `locationsMatch()` for anatomical validation.
+4. Run `npm run test` and `npm run build` after engine changes.
+
+Read `AGENTS.md` for full project context. For ChatGPT Codex setup, see `docs/CODEX_SETUP.md`.

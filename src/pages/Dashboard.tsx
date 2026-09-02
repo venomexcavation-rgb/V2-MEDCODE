@@ -67,8 +67,14 @@ export function Dashboard() {
         </div>
 
         <div className="card">
-          <div className="stat-label" style={{ marginBottom: '1rem' }}>
-            Recent Activity
+          <div
+            className="stat-label"
+            style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', gap: '1rem' }}
+          >
+            <span>Recent Activity</span>
+            <Link to="/performance" className="text-link">
+              View on Performance
+            </Link>
           </div>
           {stats.recentRecords.length === 0 ? (
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>

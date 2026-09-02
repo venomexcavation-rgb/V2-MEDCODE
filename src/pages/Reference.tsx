@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { REFERENCE_LIBRARY, REFERENCE_CATEGORIES } from '@/data/references';
+import { TCCC_GUIDELINE_PENDING } from '@/data/tccc';
 
 export function Reference() {
   const [activeCategory, setActiveCategory] = useState<string>('All');
@@ -15,6 +16,20 @@ export function Reference() {
         <h1 className="page-title">Reference Library</h1>
         <p className="page-subtitle">Validated training material and protocols</p>
       </header>
+
+      <div className="card" style={{ marginBottom: '1.5rem' }}>
+        <div className="scenario-card-id">{TCCC_GUIDELINE_PENDING.authority}</div>
+        <div className="scenario-card-title" style={{ fontSize: '1rem' }}>
+          {TCCC_GUIDELINE_PENDING.documentTitle}
+        </div>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+          Guideline version: {TCCC_GUIDELINE_PENDING.versionDate} ({TCCC_GUIDELINE_PENDING.id})
+        </p>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+          {TCCC_GUIDELINE_PENDING.source}
+        </p>
+        <div className="ref-placeholder">Training use only — clinical recommendations are not encoded until verified.</div>
+      </div>
 
       <div style={{ marginBottom: '1.5rem' }}>
         <button

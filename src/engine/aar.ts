@@ -1,12 +1,16 @@
 import type {
+  ActionType,
   CategoryScore,
   CheckResult,
+  MarchLetter,
   PerformanceBand,
   SimulationEvent,
   SimulationState,
 } from './types';
 import type { ScenarioDefinition } from './types';
 import { formatDuration } from '@/lib/formatDuration';
+import { evaluateScenarioTcccRules, getScenarioTcccGuidelineVersion } from '@/data/tccc';
+import { failedMassiveHemorrhageDeadline, MASSIVE_HEMORRHAGE_FAIL_REASON } from './hemorrhageDeadline';
 
 export interface AARResult {
   missionResult: 'SUCCESS' | 'PARTIAL SUCCESS' | 'FAILURE';
@@ -14,6 +18,10 @@ export interface AARResult {
   overallScore: number;
   performanceBand: PerformanceBand;
   timeToCriticalIntervention?: number;
+  /** Wall-clock scenario duration in seconds. */
+  totalElapsedSeconds?: number;
+  /** Time attributed to each MARCH letter from trainee actions. Sums to totalElapsedSeconds. */
+  marchTimeSeconds?: Record<MarchLetter, number>;
   categoryScores: CategoryScore[];
   marchScores: Record<'M' | 'A' | 'R' | 'C' | 'H', number>;
   criticalErrors: CheckResult[];
@@ -25,6 +33,10 @@ export interface AARResult {
   whatWentWell: string[];
   needsImprovement: string[];
   recommendedTraining: string[];
+  tcccGuidelineVersionId?: string;
+  tcccGuidelineVersionDate?: string;
+  tcccResults: import('@/data/tccc/types').TcccRuleResult[];
+  unknownTcccRuleIds: string[];
 }
 
 export interface TimelineEntry {
@@ -65,6 +77,7 @@ function getPerformanceBand(score: number): PerformanceBand {
 
 function buildTimeline(events: SimulationEvent[]): TimelineEntry[] {
   const significantActions = new Set([
+    'assess_avpu',
     'check_responsiveness',
     'assess_massive_hemorrhage',
     'blood_sweep',
@@ -78,6 +91,12 @@ function buildTimeline(events: SimulationEvent[]): TimelineEntry[] {
     'reassess_hemorrhage',
     'reassess_breathing',
     'reassess_circulation',
+    'reassess_general',
+    'prevent_hypothermia',
+    'initiate_iv_access',
+    'initiate_saline_lock',
+    'administer_txa',
+    'administer_whole_blood',
     'request_evacuation',
   ]);
 
@@ -100,7 +119,7 @@ function detectMissedFindings(state: SimulationState): string[] {
 function detectUnnecessaryInterventions(state: SimulationState): string[] {
   const unnecessary: string[] = [];
   for (const intervention of state.interventions) {
-    if (!intervention.effective && intervention.type !== 'check_responsiveness') {
+    if (!intervention.effective && intervention.type !== 'check_responsiveness' && intervention.type !== 'assess_avpu') {
       unnecessary.push(
         `${intervention.type.replace(/_/g, ' ')} at ${intervention.location ?? 'unknown location'} — ineffective or inappropriate`,
       );
@@ -146,7 +165,77 @@ function detectSequenceDeviations(state: SimulationState): string[] {
     deviations.push('Tourniquet was applied without subsequent hemorrhage reassessment.');
   }
 
+  if (state.events.some((e) => e.action === 'request_evacuation' && e.result === 'failure')) {
+    deviations.push('Tactical evacuation was attempted before all interventions were reassessed.');
+  }
+
   return deviations;
+}
+
+const MARCH_ACTION_LETTER: Partial<Record<ActionType, MarchLetter>> = {
+  assess_massive_hemorrhage: 'M',
+  blood_sweep: 'M',
+  apply_tourniquet: 'M',
+  pack_wound: 'M',
+  reassess_hemorrhage: 'M',
+  assess_airway: 'A',
+  reassess_airway: 'A',
+  assess_breathing: 'R',
+  check_respirations: 'R',
+  check_penetrating_chest_trauma: 'R',
+  apply_chest_seal: 'R',
+  needle_decompression: 'R',
+  reassess_breathing: 'R',
+  assess_circulation: 'C',
+  check_radial_pulse: 'C',
+  initiate_iv_access: 'C',
+  initiate_saline_lock: 'C',
+  administer_txa: 'C',
+  administer_whole_blood: 'C',
+  reassess_circulation: 'C',
+  prevent_hypothermia: 'H',
+};
+
+function marchLetterForEvent(event: SimulationEvent): MarchLetter | undefined {
+  if (event.action === 'expose' || event.action === 'visual_inspection') {
+    const loc = event.location ?? '';
+    if (loc.includes('chest')) return 'R';
+    if (
+      loc.includes('leg') ||
+      loc.includes('thigh') ||
+      loc.includes('foot') ||
+      loc.includes('arm') ||
+      loc.includes('hand')
+    ) {
+      return 'M';
+    }
+    return undefined;
+  }
+  return MARCH_ACTION_LETTER[event.action];
+}
+
+export function buildMarchTimeSeconds(state: SimulationState): Record<MarchLetter, number> {
+  const times: Record<MarchLetter, number> = { M: 0, A: 0, R: 0, C: 0, H: 0 };
+  const elapsed = Math.max(0, Math.floor(state.elapsedSeconds));
+  if (elapsed === 0) return times;
+
+  const mapped = state.events
+    .map((event) => ({ t: Math.max(0, event.timestamp), letter: marchLetterForEvent(event) }))
+    .filter((event): event is { t: number; letter: MarchLetter } => event.letter !== undefined)
+    .sort((a, b) => a.t - b.t);
+
+  let last = 0;
+  let current: MarchLetter = 'M';
+
+  for (const event of mapped) {
+    const t = Math.min(event.t, elapsed);
+    times[event.letter] += Math.max(0, t - last);
+    current = event.letter;
+    last = t;
+  }
+
+  times[current] += Math.max(0, elapsed - last);
+  return times;
 }
 
 function buildMarchScores(categoryScores: CategoryScore[]): Record<'M' | 'A' | 'R' | 'C' | 'H', number> {
@@ -266,10 +355,15 @@ export function generateAAR(
 
   const casualtyOutcome =
     state.status === 'failed'
-      ? 'Casualty deteriorated beyond recovery due to untreated critical injuries.'
+      ? failedMassiveHemorrhageDeadline(state)
+        ? MASSIVE_HEMORRHAGE_FAIL_REASON
+        : 'Casualty deteriorated beyond recovery due to untreated critical injuries.'
       : state.physiology.shockState === 'none' || state.physiology.shockState === 'compensated'
         ? 'Casualty stabilized with controlled hemorrhage and adequate perfusion.'
         : 'Casualty partially stabilized — continued monitoring required during evacuation.';
+
+  const tccc = evaluateScenarioTcccRules(state, scenario);
+  const guideline = getScenarioTcccGuidelineVersion(scenario);
 
   return {
     missionResult,
@@ -277,6 +371,8 @@ export function generateAAR(
     overallScore,
     performanceBand: getPerformanceBand(overallScore),
     timeToCriticalIntervention: state.tourniquetAppliedAt,
+    totalElapsedSeconds: Math.max(0, Math.floor(state.elapsedSeconds)),
+    marchTimeSeconds: buildMarchTimeSeconds(state),
     categoryScores,
     marchScores,
     criticalErrors,
@@ -288,5 +384,9 @@ export function generateAAR(
     whatWentWell: feedback.well,
     needsImprovement: feedback.improve,
     recommendedTraining: feedback.training,
+    tcccGuidelineVersionId: guideline?.id ?? scenario.tcccGuidelineVersionId,
+    tcccGuidelineVersionDate: guideline?.versionDate,
+    tcccResults: tccc.results,
+    unknownTcccRuleIds: tccc.unknownRuleIds,
   };
 }

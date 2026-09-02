@@ -1,9 +1,11 @@
 import type { AnatomicalLocation } from '@/lib/locations';
+import type { TcccEvidenceBinding } from '@/data/tccc/types';
 
 export type MarchLetter = 'M' | 'A' | 'R' | 'C' | 'H';
 export type MarchStatus = 'UNKNOWN' | 'ASSESSING' | 'CONCERN' | 'TREATED' | 'STABLE';
 
 export type ActionType =
+  | 'assess_avpu'
   | 'check_responsiveness'
   | 'assess_massive_hemorrhage'
   | 'blood_sweep'
@@ -27,6 +29,12 @@ export type ActionType =
   | 'log_roll'
   | 'position_casualty'
   | 'request_evacuation'
+  | 'end_scenario'
+  | 'prevent_hypothermia'
+  | 'initiate_iv_access'
+  | 'initiate_saline_lock'
+  | 'administer_txa'
+  | 'administer_whole_blood'
   | 'unknown';
 
 export interface StructuredAction {
@@ -127,6 +135,15 @@ export interface SimulationState {
   hemorrhageControlledAt?: number;
   massiveHemorrhageIdentifiedAt?: number;
   tourniquetAppliedAt?: number;
+  hypothermiaPreventionApplied: boolean;
+  ivAccessInitiated: boolean;
+  salineLockInitiated: boolean;
+  txaAdministered: boolean;
+  wholeBloodAdministered: boolean;
+  /** What the medic found on radial-pulse assessment. Drives whole-blood requirement. */
+  radialPulseFinding?: 'present' | 'absent';
+  /** Timestamp of the last full intervention reassessment required before tactical evacuation. */
+  preEvacReassessmentAt?: number;
   dialogueHistory: string[];
   completionReason?: string;
   aar?: import('@/engine/aar').AARResult;
@@ -201,6 +218,14 @@ export interface ScenarioDefinition {
   completionCriteria: CompletionCriteria[];
   failureCriteria: CompletionCriteria[];
   actionTimeCosts: Partial<Record<ActionType, number>>;
+  /** Pins this scenario to a TCCC guideline version slot. */
+  tcccGuidelineVersionId?: string;
+  /** Stable TCCC rule IDs this scenario evaluates. Unknown IDs are reported, not thrown. */
+  requiredTcccRules?: string[];
+  /** Scenario-local event-log evidence for those rule IDs. Does not quote TCCC text. */
+  tcccEvidenceBindings?: TcccEvidenceBinding[];
+  /** Optional trainee quick-action menus for this scenario. */
+  quickActionGroups?: { label: string; commands: string[] }[];
 }
 
 export interface TrainingRecord {
@@ -215,6 +240,8 @@ export interface TrainingRecord {
   durationSeconds: number;
   casualtyOutcome: string;
   weakAreas: string[];
+  /** Full After Action Review. Absent on records saved before history persistence. */
+  aar?: import('@/engine/aar').AARResult;
 }
 
 export interface PerformanceStats {

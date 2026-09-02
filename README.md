@@ -16,6 +16,12 @@ Tactical casualty simulation platform for U.S. Army 68W Combat Medic training.
 
 AI handles interaction. Deterministic code handles medical truth.
 
+## Live demo
+
+- Dashboard: https://venomexcavation-rgb.github.io/V2-MEDCODE/
+- Scenario 001: https://venomexcavation-rgb.github.io/V2-MEDCODE/training/SCENARIO-001
+- Scenario 003: https://venomexcavation-rgb.github.io/V2-MEDCODE/training/SCENARIO-003
+
 ## Development
 
 ```bash
@@ -25,10 +31,21 @@ npm run test
 npm run build
 ```
 
+## ChatGPT / Codex in Cursor
+
+To let **ChatGPT (Codex)** view and edit this project inside Cursor:
+
+1. Install the **OpenAI Codex** extension (`openai.chatgpt`) in Cursor
+2. Open this repo and sign in via **Codex: Open Codex Sidebar**
+3. Trust the workspace when prompted
+4. Follow the full setup guide: [docs/CODEX_SETUP.md](docs/CODEX_SETUP.md)
+
+Codex reads `AGENTS.md` for project context and `src/engine/AGENTS.md` for simulation engine rules.
+
 ## V1 Features
 
 - Dashboard with MARCH performance tracking
-- Scenario library with Scenario 001 (Dismounted Blast Casualty)
+- Scenario library with Scenario 001 (Dismounted Blast Casualty) and Scenario 003 (Gunshot Wound — Urban)
 - Natural-language command interface with structured action parsing
 - Hidden finding discovery system
 - Anatomical location validation

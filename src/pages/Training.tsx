@@ -15,11 +15,12 @@ interface LogEntry {
   text: string;
 }
 
-const QUICK_ACTIONS = [
-  { label: 'Assess', commands: ['Check for massive hemorrhage', 'Assess airway', 'Assess breathing'] },
+const DEFAULT_QUICK_ACTIONS = [
+  { label: 'Assess', commands: ['Checking AVPU', 'Check for massive hemorrhage', 'Assess airway', 'Assess breathing', 'Check radial pulse'] },
   { label: 'Expose', commands: ['Expose the left leg', 'Expose the chest'] },
-  { label: 'Intervention', commands: ['Apply tourniquet high and tight to the left leg', 'Apply chest seal to right chest'] },
-  { label: 'Reassess', commands: ['Reassess bleeding', 'Reassess breathing', 'Check radial pulse'] },
+  { label: 'Intervention', commands: ['Apply tourniquet high and tight to the left leg', 'Hasty tourniquet applied to leg', 'Apply chest seal to right chest', 'Initiate IV access', 'Initiate saline lock', 'Administer 2 grams TXA', 'Administer 450mL of low titer O whole blood', 'Prevent hypothermia'] },
+    { label: 'Reassess', commands: ['Reassess bleeding', 'Reassess all interventions', 'Reassess breathing', 'Reassess circulation'] },
+    { label: 'Complete', commands: ['Initiate tactical evacuation', 'End scenario'] },
 ];
 
 export function Training() {
@@ -33,6 +34,11 @@ export function Training() {
   const [activeQuickMenu, setActiveQuickMenu] = useState<string | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
   const savedRef = useRef(false);
+  const stateRef = useRef<SimulationState | null>(null);
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   useEffect(() => {
     if (!scenario) return;
@@ -72,25 +78,36 @@ export function Training() {
     if (!state || !scenario || savedRef.current) return;
     if (state.status === 'completed' || state.status === 'failed') {
       if (state.aar) {
-        saveTrainingRecord(scenario.id, scenario.title, state.aar, state.elapsedSeconds);
+        const record = saveTrainingRecord(scenario.id, scenario.title, state.aar, state.elapsedSeconds);
         savedRef.current = true;
         setLogs((prev) => [
           ...prev,
           {
             id: `end-${Date.now()}`,
             type: 'system',
-            text: `Scenario ${state.status.toUpperCase()}. Redirecting to After Action Review…`,
+            text: state.completionReason
+              ? `Scenario ${state.status.toUpperCase()}. ${state.completionReason} Redirecting to After Action Review…`
+              : `Scenario ${state.status.toUpperCase()}. Redirecting to After Action Review…`,
           },
         ]);
         setTimeout(() => {
-          navigate(`/training/${scenario.id}/aar`, { state: { aar: state.aar, scenarioTitle: scenario.title } });
+          navigate(`/training/${scenario.id}/aar`, {
+            state: {
+              aar: state.aar,
+              scenarioTitle: scenario.title,
+              recordId: record.id,
+            },
+          });
         }, 2000);
       }
     }
   }, [state, scenario, navigate]);
 
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const log = logEndRef.current?.closest('.sim-log');
+    if (log instanceof HTMLElement) {
+      log.scrollTop = log.scrollHeight;
+    }
   }, [logs]);
 
   const addLog = useCallback((type: LogEntry['type'], text: string) => {
@@ -99,7 +116,8 @@ export function Training() {
 
   const handleSubmit = useCallback(
     (rawInput: string) => {
-      if (!state || !scenario || state.status !== 'active') return;
+      const current = stateRef.current;
+      if (!current || !scenario || current.status !== 'active') return;
 
       const trimmed = rawInput.trim();
       if (!trimmed) return;
@@ -113,11 +131,16 @@ export function Training() {
         return;
       }
 
-      const result = executeAction(state, parsed.action, scenario);
+      const result = executeAction(current, parsed.action, scenario);
+      stateRef.current = result.state;
       setState(result.state);
 
       for (const msg of result.messages) {
         addLog('simulation', msg);
+      }
+
+      if (result.state.status === 'completed' || result.state.status === 'failed') {
+        addLog('system', `Scenario ${result.state.status.toUpperCase()}.`);
       }
 
       const lastDialogue = result.state.dialogueHistory[result.state.dialogueHistory.length - 1];
@@ -125,7 +148,7 @@ export function Training() {
         addLog('casualty', lastDialogue);
       }
     },
-    [state, scenario, addLog, logs],
+    [scenario, addLog, logs],
   );
 
   if (!scenario || !state) {
@@ -160,6 +183,15 @@ export function Training() {
             <span className={`status-badge ${statusClass}`}>{state.status.toUpperCase()}</span>
           </div>
         </div>
+        {state.status === 'active' && (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => handleSubmit('End scenario')}
+          >
+            End Scenario
+          </button>
+        )}
       </div>
 
       <div style={{ marginBottom: '1rem' }}>
@@ -187,7 +219,7 @@ export function Training() {
           </div>
           <div className="sim-input-area">
             <div className="quick-actions">
-              {QUICK_ACTIONS.map((qa) => (
+              {(scenario.quickActionGroups ?? DEFAULT_QUICK_ACTIONS).map((qa) => (
                 <div key={qa.label} style={{ position: 'relative' }}>
                   <button
                     className="quick-btn"

@@ -8,7 +8,8 @@ export interface ParseResult {
 }
 
 const ACTION_PATTERNS: { pattern: RegExp; type: ActionType; needsLocation?: boolean }[] = [
-  { pattern: /check\s*(for\s*)?responsiveness|tap\s*shoulder|are\s*you\s*ok|hey\s*man|wake\s*up/, type: 'check_responsiveness' },
+  { pattern: /\b(assessing|checking|assess|check)\s+(for\s+)?avpu\b|\bavpu\b/, type: 'assess_avpu' },
+  { pattern: /administer\s+450\s*(cc|ml|milliliters?)\s+(of\s+)?low[\s-]*titer\s+o[\s-]*whole\s+blood|450\s*(cc|ml)\s+(of\s+)?low[\s-]*titer\s+o[\s-]*whole\s+blood|low[\s-]*titer\s+o[\s-]*whole\s+blood|ltowb|whole\s+blood/, type: 'administer_whole_blood' },
   { pattern: /assess\s*(for\s*)?massive\s*hemorrhage|check\s*(for\s*)?massive\s*bleeding|major\s*bleeding|life.?threatening\s*bleed/, type: 'assess_massive_hemorrhage' },
   { pattern: /blood\s*sweep|sweep\s*(for\s*)?blood|check\s*(for\s*)?blood/, type: 'blood_sweep' },
   { pattern: /expose|remove\s*clothing|cut\s*away|pull\s*up\s*pant|roll\s*up\s*sleeve|access\s*wound/, type: 'expose', needsLocation: true },
@@ -19,7 +20,7 @@ const ACTION_PATTERNS: { pattern: RegExp; type: ActionType; needsLocation?: bool
   { pattern: /radial\s*pulse|check\s*pulse|feel\s*(for\s*)?pulse/, type: 'check_radial_pulse' },
   { pattern: /check\s*respirations|count\s*respirations|respiratory\s*rate/, type: 'check_respirations' },
   { pattern: /penetrating\s*chest|sucking\s*chest|chest\s*trauma|open\s*chest\s*wound|entry\s*wound/, type: 'check_penetrating_chest_trauma', needsLocation: true },
-  { pattern: /tourniquet|tq|high\s*and\s*tight|stop\s*the\s*bleeding/, type: 'apply_tourniquet', needsLocation: true },
+  { pattern: /tourniquet|torniquet|tq|high\s*and\s*tight|hasty\s+(?:tourniquet|torniquet|tq)|stop\s*the\s*bleeding/, type: 'apply_tourniquet', needsLocation: true },
   { pattern: /pack\s*(the\s*)?wound|wound\s*pack|hemostatic|gauze\s*pack/, type: 'pack_wound', needsLocation: true },
   { pattern: /chest\s*seal|occlusive\s*dressing|seal\s*(the\s*)?chest/, type: 'apply_chest_seal', needsLocation: true },
   { pattern: /needle\s*decompression|decompress|nct/, type: 'needle_decompression', needsLocation: true },
@@ -27,9 +28,14 @@ const ACTION_PATTERNS: { pattern: RegExp; type: ActionType; needsLocation?: bool
   { pattern: /reassess\s*breathing|reassess\s*respiration|check\s*breathing\s*again/, type: 'reassess_breathing' },
   { pattern: /reassess\s*circulation|reassess\s*pulse|check\s*pulse\s*again/, type: 'reassess_circulation' },
   { pattern: /reassess\s*airway/, type: 'reassess_airway' },
-  { pattern: /reassess|secondary\s*survey|repeat\s*assessment/, type: 'reassess_general' },
+  { pattern: /reassess\s+(all\s+)?interventions|reassess\s+(the\s+)?casualty|secondary\s*survey|repeat\s*assessment|\breassess\b/, type: 'reassess_general' },
   { pattern: /log\s*roll|roll\s*(the\s*)?casualty/, type: 'log_roll' },
-  { pattern: /evac|request\s*medevac|call\s*for\s*help|9.?line|request\s*evacuation/, type: 'request_evacuation' },
+  { pattern: /initiate\s*(an?\s*)?(iv|intravenous)\s*access|start\s*(an?\s*)?iv|iv\s*access/, type: 'initiate_iv_access' },
+  { pattern: /initiate\s*(a\s*)?saline\s*lock|saline\s*lock|hep(\-|\s*)lock/, type: 'initiate_saline_lock' },
+  { pattern: /\btxa\b|tranexamic/, type: 'administer_txa' },
+  { pattern: /prevent\s*hypothermia|apply\s*(a\s*)?(blanket|hypothermia\s*(kit|prevention)|hpmk)|cover\s*(the\s*)?(casualty|patient)|insulate|keep\s*(him|them|the\s*casualty)\s*warm/, type: 'prevent_hypothermia' },
+  { pattern: /end\s*(the\s*)?scenario|complete\s*(the\s*)?scenario|stop\s*(the\s*)?simulation|finish\s*(the\s*)?(scenario|training)/, type: 'end_scenario' },
+  { pattern: /evac|request\s*medevac|call\s*for\s*help|9.?line|request\s*evacuation|tactical\s*evac|tacevac/, type: 'request_evacuation' },
 ];
 
 function inferLocationFromContext(input: string, actionType: ActionType): AnatomicalLocation | undefined {
@@ -44,12 +50,44 @@ function inferLocationFromContext(input: string, actionType: ActionType): Anatom
   return undefined;
 }
 
-function extractParameters(input: string, type: ActionType): Record<string, string | boolean> {
-  const params: Record<string, string | boolean> = {};
+function hasTwoGramTxaDose(input: string): boolean {
+  const normalized = input.toLowerCase();
+  return /(?:2|two)\s*(?:g|gm|grams?)\b/.test(normalized) && /txa|tranexamic/.test(normalized);
+}
+
+function hasFourFiftyWholeBloodVolume(input: string): boolean {
+  const normalized = input.toLowerCase();
+  return /450\s*(cc|ml|milliliters?)\b/.test(normalized);
+}
+
+function isHighAndTightPasskey(input: string): boolean {
+  return /high\s*and\s*tight|high\s*&\s*tight|hasty\s+(?:tourniquet|torniquet|tq)/i.test(input);
+}
+
+function isAffectedLimbTourniquetPasskey(input: string): boolean {
+  if (/\b(left|right)\b/i.test(input)) return false;
+  return (
+    /hasty\s+(?:tourniquet|torniquet|tq).*(?:applied\s+to|to)\s+(?:the\s+)?(?:affected\s+)?(?:limb|leg|extremity)\b/i.test(
+      input,
+    ) || /\b(?:applied\s+to|to)\s+(?:the\s+)?affected\s+(?:limb|leg|extremity)\b/i.test(input)
+  );
+}
+
+function extractParameters(input: string, type: ActionType): Record<string, string | boolean | number> {
+  const params: Record<string, string | boolean | number> = {};
   if (type === 'apply_tourniquet') {
-    if (/high\s*and\s*tight|high\s*&\s*tight/i.test(input)) {
+    if (isHighAndTightPasskey(input)) {
       params.placement = 'high_and_tight';
     }
+    if (isAffectedLimbTourniquetPasskey(input)) {
+      params.target = 'affected_limb';
+    }
+  }
+  if (type === 'administer_txa' && hasTwoGramTxaDose(input)) {
+    params.doseGrams = 2;
+  }
+  if (type === 'administer_whole_blood' && hasFourFiftyWholeBloodVolume(input)) {
+    params.volumeMl = 450;
   }
   return params;
 }
@@ -67,7 +105,25 @@ export function parseActionInput(rawInput: string): ParseResult {
       const location = inferLocationFromContext(input, type);
       const parameters = extractParameters(input, type);
 
-      if (needsLocation && !location) {
+      if (type === 'administer_txa' && parameters.doseGrams !== 2) {
+        return {
+          success: false,
+          clarification: 'Specify the TXA dose. Use: administer 2 grams TXA.',
+        };
+      }
+
+      if (type === 'administer_whole_blood' && parameters.volumeMl !== 450) {
+        return {
+          success: false,
+          clarification:
+            'Specify the whole blood volume. Use: Administer 450cc of low titer O whole blood or Administer 450mL of low titer O whole blood.',
+        };
+      }
+
+      const affectedLimbPasskey =
+        type === 'apply_tourniquet' && parameters.target === 'affected_limb';
+
+      if (needsLocation && !location && !affectedLimbPasskey) {
         const locationPrompts: Partial<Record<ActionType, string>> = {
           apply_tourniquet: 'Where are you applying the tourniquet?',
           pack_wound: 'Which wound are you packing? Specify the anatomical location.',

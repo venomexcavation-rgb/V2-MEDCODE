@@ -1,0 +1,18 @@
+{
+  "name": "68W Training Platform",
+  "install": "npm install",
+  "start": "npm run build",
+  "terminals": [
+    {
+      "name": "dev-server",
+      "command": "npm run dev -- --host 0.0.0.0 --port 5173",
+      "description": "Vite dev server for the 68W casualty training simulator"
+    }
+  ],
+  "ports": [
+    {
+      "name": "web",
+      "port": 5173
+    }
+  ]
+}

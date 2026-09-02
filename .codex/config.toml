@@ -1,0 +1,8 @@
+# Project defaults for OpenAI Codex (ChatGPT) in this repository.
+# User-level auth, sandbox, and provider settings belong in ~/.codex/config.toml.
+# See docs/CODEX_SETUP.md for full Cursor + Codex setup.
+
+file_opener = "cursor"
+
+[features]
+web_search_request = true
