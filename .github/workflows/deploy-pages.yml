@@ -1,10 +1,6 @@
 name: Deploy GitHub Pages
 
 on:
-  push:
-    branches:
-      - main
-      - cursor/68w-training-platform-v1-e953
   workflow_dispatch:
 
 permissions:
