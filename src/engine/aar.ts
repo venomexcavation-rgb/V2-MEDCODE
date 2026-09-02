@@ -7,6 +7,7 @@ import type {
 } from './types';
 import type { ScenarioDefinition } from './types';
 import { formatDuration } from '@/lib/formatDuration';
+import { evaluateScenarioTcccRules, getScenarioTcccGuidelineVersion } from '@/data/tccc';
 
 export interface AARResult {
   missionResult: 'SUCCESS' | 'PARTIAL SUCCESS' | 'FAILURE';
@@ -25,6 +26,10 @@ export interface AARResult {
   whatWentWell: string[];
   needsImprovement: string[];
   recommendedTraining: string[];
+  tcccGuidelineVersionId?: string;
+  tcccGuidelineVersionDate?: string;
+  tcccResults: import('@/data/tccc/types').TcccRuleResult[];
+  unknownTcccRuleIds: string[];
 }
 
 export interface TimelineEntry {
@@ -271,6 +276,9 @@ export function generateAAR(
         ? 'Casualty stabilized with controlled hemorrhage and adequate perfusion.'
         : 'Casualty partially stabilized — continued monitoring required during evacuation.';
 
+  const tccc = evaluateScenarioTcccRules(state, scenario);
+  const guideline = getScenarioTcccGuidelineVersion(scenario);
+
   return {
     missionResult,
     casualtyOutcome,
@@ -288,5 +296,9 @@ export function generateAAR(
     whatWentWell: feedback.well,
     needsImprovement: feedback.improve,
     recommendedTraining: feedback.training,
+    tcccGuidelineVersionId: guideline?.id ?? scenario.tcccGuidelineVersionId,
+    tcccGuidelineVersionDate: guideline?.versionDate,
+    tcccResults: tccc.results,
+    unknownTcccRuleIds: tccc.unknownRuleIds,
   };
 }

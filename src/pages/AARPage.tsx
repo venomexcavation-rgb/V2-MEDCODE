@@ -137,6 +137,39 @@ export function AARPage() {
       )}
 
       <div className="aar-section">
+        <div className="aar-section-title">TCCC Guideline Alignment</div>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+          Guideline version: {aar.tcccGuidelineVersionId ?? '—'}
+          {aar.tcccGuidelineVersionDate ? ` (${aar.tcccGuidelineVersionDate})` : ''}
+          . Clinical expected-behavior text is shown only when verified against CoTCCC / JTS
+          source material.
+        </p>
+        {(aar.tcccResults ?? []).map((result) => (
+          <div
+            key={result.ruleId}
+            className={`check-item ${result.outcome === 'completed' ? 'passed' : 'failed'}`}
+          >
+            <strong>{result.ruleId}</strong> — {result.title}
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+              Outcome: {result.outcome.replace(/_/g, ' ')}. {result.evidenceDetail}
+            </p>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              Expected behavior: {result.expectedBehavior}
+              {result.source
+                ? ` | ${result.source.authority} | ${result.source.document} | ${result.source.versionDate}`
+                : ''}
+              {result.verified ? '' : ' | UNVERIFIED'}
+            </p>
+          </div>
+        ))}
+        {(aar.unknownTcccRuleIds ?? []).length > 0 && (
+          <p style={{ fontSize: '0.8rem', color: 'var(--warning-text)' }}>
+            Unknown TCCC rule IDs ignored: {aar.unknownTcccRuleIds.join(', ')}
+          </p>
+        )}
+      </div>
+
+      <div className="aar-section">
         <div className="aar-section-title">What Went Well</div>
         <ul className="feedback-list">
           {aar.whatWentWell.map((item) => (

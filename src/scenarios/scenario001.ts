@@ -567,6 +567,70 @@ export const scenario001: ScenarioDefinition = {
     log_roll: 20,
     request_evacuation: 10,
   },
+  tcccGuidelineVersionId: 'tccc-pending-verification',
+  requiredTcccRules: [
+    'TCCC-CUF-001',
+    'TCCC-M-001',
+    'TCCC-M-002',
+    'TCCC-A-001',
+    'TCCC-R-001',
+    'TCCC-R-002',
+    'TCCC-C-001',
+    'TCCC-H-001',
+    'TCCC-TEV-001',
+  ],
+  tcccEvidenceBindings: [
+    {
+      ruleId: 'TCCC-CUF-001',
+      kind: 'effective_intervention',
+      requiredActions: ['apply_tourniquet'],
+      requireEffective: true,
+      requireLocation: true,
+      targetLocation: 'left_lower_leg',
+    },
+    {
+      ruleId: 'TCCC-M-001',
+      kind: 'effective_intervention',
+      requiredActions: ['apply_tourniquet'],
+      requireEffective: true,
+      requireLocation: true,
+      targetLocation: 'left_lower_leg',
+    },
+    {
+      ruleId: 'TCCC-M-002',
+      kind: 'finding_discovered',
+      findingId: 'finding-left-leg-hemorrhage',
+    },
+    {
+      ruleId: 'TCCC-A-001',
+      kind: 'assessment_performed',
+      requiredActions: ['assess_airway'],
+    },
+    {
+      ruleId: 'TCCC-R-001',
+      kind: 'assessment_performed',
+      requiredActions: ['assess_breathing'],
+    },
+    {
+      ruleId: 'TCCC-R-002',
+      kind: 'effective_intervention',
+      requiredActions: ['apply_chest_seal'],
+      requireEffective: true,
+      requireLocation: true,
+      targetLocation: 'right_chest',
+      requiresDiscoveredFindingId: 'finding-right-chest-wound',
+    },
+    {
+      ruleId: 'TCCC-C-001',
+      kind: 'assessment_performed',
+      requiredActions: ['check_radial_pulse', 'assess_circulation'],
+    },
+    {
+      ruleId: 'TCCC-TEV-001',
+      kind: 'assessment_performed',
+      requiredActions: ['request_evacuation'],
+    },
+  ],
 };
 
 export function createInitialState(scenario: ScenarioDefinition): SimulationState {

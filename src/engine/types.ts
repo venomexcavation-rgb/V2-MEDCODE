@@ -1,4 +1,5 @@
 import type { AnatomicalLocation } from '@/lib/locations';
+import type { TcccEvidenceBinding } from '@/data/tccc/types';
 
 export type MarchLetter = 'M' | 'A' | 'R' | 'C' | 'H';
 export type MarchStatus = 'UNKNOWN' | 'ASSESSING' | 'CONCERN' | 'TREATED' | 'STABLE';
@@ -201,6 +202,12 @@ export interface ScenarioDefinition {
   completionCriteria: CompletionCriteria[];
   failureCriteria: CompletionCriteria[];
   actionTimeCosts: Partial<Record<ActionType, number>>;
+  /** Pins this scenario to a TCCC guideline version slot. */
+  tcccGuidelineVersionId?: string;
+  /** Stable TCCC rule IDs this scenario evaluates. Unknown IDs are reported, not thrown. */
+  requiredTcccRules?: string[];
+  /** Scenario-local event-log evidence for those rule IDs. Does not quote TCCC text. */
+  tcccEvidenceBindings?: TcccEvidenceBinding[];
 }
 
 export interface TrainingRecord {
