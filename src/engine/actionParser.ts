@@ -31,6 +31,7 @@ const ACTION_PATTERNS: { pattern: RegExp; type: ActionType; needsLocation?: bool
   { pattern: /log\s*roll|roll\s*(the\s*)?casualty/, type: 'log_roll' },
   { pattern: /initiate\s*(an?\s*)?(iv|intravenous)\s*access|start\s*(an?\s*)?iv|iv\s*access/, type: 'initiate_iv_access' },
   { pattern: /initiate\s*(a\s*)?saline\s*lock|saline\s*lock|hep(\-|\s*)lock/, type: 'initiate_saline_lock' },
+  { pattern: /\btxa\b|tranexamic/, type: 'administer_txa' },
   { pattern: /prevent\s*hypothermia|apply\s*(a\s*)?(blanket|hypothermia\s*(kit|prevention)|hpmk)|cover\s*(the\s*)?(casualty|patient)|insulate|keep\s*(him|them|the\s*casualty)\s*warm/, type: 'prevent_hypothermia' },
   { pattern: /end\s*(the\s*)?scenario|complete\s*(the\s*)?scenario|stop\s*(the\s*)?simulation|finish\s*(the\s*)?(scenario|training)/, type: 'end_scenario' },
   { pattern: /evac|request\s*medevac|call\s*for\s*help|9.?line|request\s*evacuation/, type: 'request_evacuation' },
@@ -48,12 +49,20 @@ function inferLocationFromContext(input: string, actionType: ActionType): Anatom
   return undefined;
 }
 
-function extractParameters(input: string, type: ActionType): Record<string, string | boolean> {
-  const params: Record<string, string | boolean> = {};
+function hasTwoGramTxaDose(input: string): boolean {
+  const normalized = input.toLowerCase();
+  return /(?:2|two)\s*(?:g|gm|grams?)\b/.test(normalized) && /txa|tranexamic/.test(normalized);
+}
+
+function extractParameters(input: string, type: ActionType): Record<string, string | boolean | number> {
+  const params: Record<string, string | boolean | number> = {};
   if (type === 'apply_tourniquet') {
     if (/high\s*and\s*tight|high\s*&\s*tight/i.test(input)) {
       params.placement = 'high_and_tight';
     }
+  }
+  if (type === 'administer_txa' && hasTwoGramTxaDose(input)) {
+    params.doseGrams = 2;
   }
   return params;
 }
@@ -70,6 +79,13 @@ export function parseActionInput(rawInput: string): ParseResult {
     if (pattern.test(normalized)) {
       const location = inferLocationFromContext(input, type);
       const parameters = extractParameters(input, type);
+
+      if (type === 'administer_txa' && parameters.doseGrams !== 2) {
+        return {
+          success: false,
+          clarification: 'Specify the TXA dose. Use: administer 2 grams TXA.',
+        };
+      }
 
       if (needsLocation && !location) {
         const locationPrompts: Partial<Record<ActionType, string>> = {

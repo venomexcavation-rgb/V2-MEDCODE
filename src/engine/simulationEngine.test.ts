@@ -40,6 +40,17 @@ describe('parseActionInput', () => {
     expect(result.action?.location).toBe('left_leg');
   });
 
+  it('parses administer 2 grams TXA and asks for the dose otherwise', () => {
+    const parsed = parseActionInput('administer 2 grams TXA');
+    expect(parsed.success).toBe(true);
+    expect(parsed.action?.type).toBe('administer_txa');
+    expect(parsed.action?.parameters?.doseGrams).toBe(2);
+
+    const missingDose = parseActionInput('give TXA');
+    expect(missingDose.success).toBe(false);
+    expect(missingDose.clarification).toContain('administer 2 grams TXA');
+  });
+
   it('asks for clarification when location missing', () => {
     const result = parseActionInput('Put a tourniquet on him');
     expect(result.success).toBe(false);
@@ -114,5 +125,31 @@ describe('simulation engine', () => {
     expect(aar.overallScore).toBeGreaterThan(0);
     expect(aar.categoryScores.length).toBeGreaterThan(0);
     expect(aar.timeline.length).toBeGreaterThan(0);
+  });
+
+  it('withholds TXA until a saline lock is in place, then completes circulation', () => {
+    let state = createInitialState(scenario001);
+    const blocked = executeAction(
+      state,
+      { type: 'administer_txa', parameters: { doseGrams: 2 }, rawInput: 'administer 2 grams TXA' },
+      scenario001,
+    );
+    expect(blocked.state.txaAdministered).toBe(false);
+    expect(blocked.state.interventions.some((i) => i.type === 'administer_txa')).toBe(false);
+    expect(blocked.messages).toContain('Initiate a saline lock before administering TXA.');
+
+    state = executeAction(blocked.state, { type: 'initiate_saline_lock', rawInput: 'initiate saline lock' }, scenario001).state;
+    expect(state.salineLockInitiated).toBe(true);
+    expect(state.txaAdministered).toBe(false);
+    expect(state.marchStatus.C).not.toBe('TREATED');
+
+    const given = executeAction(
+      state,
+      { type: 'administer_txa', parameters: { doseGrams: 2 }, rawInput: 'administer 2 grams TXA' },
+      scenario001,
+    );
+    expect(given.state.txaAdministered).toBe(true);
+    expect(given.messages).toContain('You administer 2 grams of TXA through the saline lock.');
+    expect(['TREATED', 'STABLE']).toContain(given.state.marchStatus.C);
   });
 });

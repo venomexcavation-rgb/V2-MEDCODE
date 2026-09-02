@@ -113,6 +113,15 @@ export function CasualtyPanel({ state, scenario }: CasualtyPanelProps) {
       </div>
 
       <div className="info-row">
+        <span className="info-label">TXA</span>
+        {state.txaAdministered ? (
+          <span className="info-value">2 GRAMS ADMINISTERED</span>
+        ) : (
+          <NotAssessed />
+        )}
+      </div>
+
+      <div className="info-row">
         <span className="info-label">Hypothermia prevention</span>
         {state.hypothermiaPreventionApplied ? (
           <span className="info-value">COVERED / INSULATED</span>

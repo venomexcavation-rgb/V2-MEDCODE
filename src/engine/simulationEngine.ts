@@ -100,13 +100,9 @@ function updateMarchStatus(state: SimulationState): Record<MarchLetter, MarchSta
     state.chestSealed || !state.discoveredFindingIds.includes('finding-right-chest-wound'),
   );
 
-  const vascularAccess =
-    state.ivAccessInitiated ||
-    state.salineLockInitiated ||
-    state.performedAssessments.includes('initiate_iv_access') ||
-    state.performedAssessments.includes('initiate_saline_lock');
-  updateLetter('C', vascularAccess);
-  if (march.C === 'CONCERN' && vascularAccess) {
+  const circulationComplete = state.salineLockInitiated && state.txaAdministered;
+  updateLetter('C', circulationComplete);
+  if (march.C === 'CONCERN' && circulationComplete) {
     march.C = 'STABLE';
   }
 
@@ -616,12 +612,8 @@ export function executeAction(
     }
 
     case 'initiate_saline_lock': {
-      if (newState.ivAccessInitiated || newState.salineLockInitiated) {
-        messages.push(
-          newState.salineLockInitiated
-            ? 'A saline lock is already in place.'
-            : 'Vascular access is already in place via IV.',
-        );
+      if (newState.salineLockInitiated) {
+        messages.push('A saline lock is already in place.');
       } else {
         newState.salineLockInitiated = true;
         newState.interventions = [
@@ -640,6 +632,57 @@ export function executeAction(
         createEvent(newState, action.type, 'success', 'Saline lock initiated.', {
           interventionEffective: true,
           stateChanges: ['saline_lock'],
+        }),
+      ];
+      break;
+    }
+
+    case 'administer_txa': {
+      const doseGrams = typeof action.parameters?.doseGrams === 'number' ? action.parameters.doseGrams : undefined;
+      if (!newState.salineLockInitiated) {
+        messages.push('Initiate a saline lock before administering TXA.');
+        newState.events = [
+          ...newState.events,
+          createEvent(newState, action.type, 'failure', 'TXA withheld — saline lock not initiated.'),
+        ];
+        break;
+      }
+      if (doseGrams !== 2) {
+        messages.push('Specify the TXA dose. Use: administer 2 grams TXA.');
+        newState.events = [
+          ...newState.events,
+          createEvent(newState, action.type, 'failure', 'TXA withheld — 2 gram dose not specified.'),
+        ];
+        break;
+      }
+      if (newState.txaAdministered) {
+        messages.push('2 grams of TXA has already been administered.');
+        newState.events = [
+          ...newState.events,
+          createEvent(newState, action.type, 'info', 'TXA already administered.', {
+            interventionEffective: true,
+            stateChanges: ['txa'],
+          }),
+        ];
+        break;
+      }
+      newState.txaAdministered = true;
+      newState.interventions = [
+        ...newState.interventions,
+        {
+          id: nextEventId(),
+          type: action.type,
+          timestamp: newState.elapsedSeconds,
+          effective: true,
+          parameters: { doseGrams: 2 },
+        },
+      ];
+      messages.push('You administer 2 grams of TXA through the saline lock.');
+      newState.events = [
+        ...newState.events,
+        createEvent(newState, action.type, 'success', '2 grams TXA administered through saline lock.', {
+          interventionEffective: true,
+          stateChanges: ['txa'],
         }),
       ];
       break;

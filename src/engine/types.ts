@@ -32,6 +32,7 @@ export type ActionType =
   | 'prevent_hypothermia'
   | 'initiate_iv_access'
   | 'initiate_saline_lock'
+  | 'administer_txa'
   | 'unknown';
 
 export interface StructuredAction {
@@ -135,6 +136,7 @@ export interface SimulationState {
   hypothermiaPreventionApplied: boolean;
   ivAccessInitiated: boolean;
   salineLockInitiated: boolean;
+  txaAdministered: boolean;
   dialogueHistory: string[];
   completionReason?: string;
   aar?: import('@/engine/aar').AARResult;

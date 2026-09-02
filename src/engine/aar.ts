@@ -86,6 +86,7 @@ function buildTimeline(events: SimulationEvent[]): TimelineEntry[] {
     'prevent_hypothermia',
     'initiate_iv_access',
     'initiate_saline_lock',
+    'administer_txa',
     'request_evacuation',
   ]);
 

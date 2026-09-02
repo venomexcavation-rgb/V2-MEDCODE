@@ -149,7 +149,7 @@ describe('TCCC guideline layer', () => {
     expect(state.hemorrhageControlledAt).toBeUndefined();
   });
 
-  it('completes circulation only after IV access or saline lock, not a pulse check', () => {
+  it('completes circulation only after saline lock then 2 grams TXA', () => {
     let state = createInitialState(scenario001);
     state = executeAction(state, { type: 'check_radial_pulse', rawInput: 'check radial pulse' }, scenario001).state;
     expect(state.marchStatus.C).not.toBe('TREATED');
@@ -157,10 +157,17 @@ describe('TCCC guideline layer', () => {
 
     const afterIv = executeAction(state, { type: 'initiate_iv_access', rawInput: 'initiate IV access' }, scenario001).state;
     expect(afterIv.ivAccessInitiated).toBe(true);
-    expect(['TREATED', 'STABLE']).toContain(afterIv.marchStatus.C);
-    expect(evaluateScenarioTcccRules(afterIv, scenario001).results.find((r) => r.ruleId === 'TCCC-C-001')?.outcome).toBe(
-      'completed',
+    expect(afterIv.marchStatus.C).not.toBe('TREATED');
+    expect(afterIv.marchStatus.C).not.toBe('STABLE');
+
+    const txaBeforeLock = executeAction(
+      createInitialState(scenario001),
+      { type: 'administer_txa', parameters: { doseGrams: 2 }, rawInput: 'administer 2 grams TXA' },
+      scenario001,
     );
+    expect(txaBeforeLock.state.txaAdministered).toBe(false);
+    expect(txaBeforeLock.messages.some((m) => m.toLowerCase().includes('saline lock'))).toBe(true);
+    expect(txaBeforeLock.state.marchStatus.C).not.toBe('TREATED');
 
     let salineState = createInitialState(scenario001);
     salineState = executeAction(
@@ -169,11 +176,33 @@ describe('TCCC guideline layer', () => {
       scenario001,
     ).state;
     expect(salineState.salineLockInitiated).toBe(true);
-    expect(['TREATED', 'STABLE']).toContain(salineState.marchStatus.C);
+    expect(salineState.marchStatus.C).not.toBe('TREATED');
+    expect(salineState.marchStatus.C).not.toBe('STABLE');
+    expect(evaluateScenarioTcccRules(salineState, scenario001).results.find((r) => r.ruleId === 'TCCC-C-001')?.outcome).toBe(
+      'completed',
+    );
+    expect(evaluateScenarioTcccRules(salineState, scenario001).results.find((r) => r.ruleId === 'TCCC-C-003')?.outcome).toBe(
+      'missed',
+    );
+
+    const afterTxa = executeAction(
+      salineState,
+      { type: 'administer_txa', parameters: { doseGrams: 2 }, rawInput: 'administer 2 grams TXA' },
+      scenario001,
+    ).state;
+    expect(afterTxa.txaAdministered).toBe(true);
+    expect(['TREATED', 'STABLE']).toContain(afterTxa.marchStatus.C);
+    expect(evaluateScenarioTcccRules(afterTxa, scenario001).results.find((r) => r.ruleId === 'TCCC-C-003')?.outcome).toBe(
+      'completed',
+    );
   });
 
-  it('parses initiate IV access and initiate saline lock', () => {
+  it('parses initiate saline lock and administer 2 grams TXA', () => {
     expect(parseActionInput('Initiate IV access').action?.type).toBe('initiate_iv_access');
     expect(parseActionInput('Initiate saline lock').action?.type).toBe('initiate_saline_lock');
+    expect(parseActionInput('administer 2 grams TXA').action?.type).toBe('administer_txa');
+    expect(parseActionInput('administer 2 grams TXA').action?.parameters?.doseGrams).toBe(2);
+    expect(parseActionInput('administer TXA').success).toBe(false);
+    expect(parseActionInput('administer TXA').clarification).toContain('administer 2 grams TXA');
   });
 });

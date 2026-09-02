@@ -190,6 +190,7 @@ export const scenario001: ScenarioDefinition = {
     hypothermiaPreventionApplied: false,
     ivAccessInitiated: false,
     salineLockInitiated: false,
+    txaAdministered: false,
   },
   deteriorationRules: [
     {
@@ -495,27 +496,49 @@ export const scenario001: ScenarioDefinition = {
     },
     {
       id: 'score-circulation-access',
-      label: 'IV access or saline lock initiated',
+      label: 'Saline lock initiated',
+      category: 'circulation',
+      maxPoints: 10,
+      critical: false,
+      detail: 'Vascular access established with a saline lock.',
+      teaching: 'Circulation step 1: initiate a saline lock before administering TXA.',
+      evaluate: (state) => {
+        const done = state.salineLockInitiated;
+        return makeCheck(
+          'score-circulation-access',
+          'Saline lock initiated',
+          'circulation',
+          10,
+          done,
+          false,
+          done ? 'Saline lock was initiated.' : 'A saline lock was not initiated.',
+          'Initiate a saline lock to begin circulation.',
+        );
+      },
+    },
+    {
+      id: 'score-circulation-txa',
+      label: '2 grams TXA administered',
       category: 'circulation',
       maxPoints: 15,
       critical: false,
-      detail: 'Vascular access established with IV or saline lock.',
-      teaching: 'Circulation is completed in this scenario by initiating IV access or a saline lock.',
+      detail: 'TXA given through the saline lock.',
+      teaching: 'Circulation step 2: after the saline lock, administer 2 grams TXA.',
       evaluate: (state) => {
-        const done = state.ivAccessInitiated || state.salineLockInitiated;
+        const done = state.txaAdministered;
         return makeCheck(
-          'score-circulation-access',
-          'IV access or saline lock initiated',
+          'score-circulation-txa',
+          '2 grams TXA administered',
           'circulation',
           15,
           done,
           false,
-          state.ivAccessInitiated
-            ? 'IV access was initiated.'
+          done
+            ? '2 grams of TXA was administered through the saline lock.'
             : state.salineLockInitiated
-              ? 'Saline lock was initiated.'
-              : 'Neither IV access nor a saline lock was initiated.',
-          'Initiate IV access or a saline lock to complete circulation.',
+              ? 'Saline lock is in place, but 2 grams TXA was not administered.'
+              : '2 grams TXA was not administered. Initiate a saline lock first.',
+          'After the saline lock, administer 2 grams TXA.',
         );
       },
     },
@@ -633,6 +656,7 @@ export const scenario001: ScenarioDefinition = {
     prevent_hypothermia: 15,
     initiate_iv_access: 20,
     initiate_saline_lock: 15,
+    administer_txa: 15,
     reassess_airway: 8,
     reassess_general: 15,
     log_roll: 20,
@@ -648,6 +672,7 @@ export const scenario001: ScenarioDefinition = {
     'TCCC-R-001',
     'TCCC-R-002',
     'TCCC-C-001',
+    'TCCC-C-003',
     'TCCC-H-001',
     'TCCC-TEV-001',
   ],
@@ -695,7 +720,13 @@ export const scenario001: ScenarioDefinition = {
     {
       ruleId: 'TCCC-C-001',
       kind: 'assessment_performed',
-      requiredActions: ['initiate_iv_access', 'initiate_saline_lock'],
+      requiredActions: ['initiate_saline_lock'],
+    },
+    {
+      ruleId: 'TCCC-C-003',
+      kind: 'effective_intervention',
+      requiredActions: ['administer_txa'],
+      requireEffective: true,
     },
     {
       ruleId: 'TCCC-H-001',
