@@ -715,6 +715,16 @@ export function executeAction(
         ];
         break;
       }
+      if (!isWholeBloodRequired(newState)) {
+        messages.push(
+          'Radial pulses are present. Whole blood is not required; you may skip this step.',
+        );
+        newState.events = [
+          ...newState.events,
+          createEvent(newState, action.type, 'info', 'Whole blood not required — radial pulses present.'),
+        ];
+        break;
+      }
       if (!newState.salineLockInitiated) {
         messages.push('Initiate a saline lock before administering whole blood.');
         newState.events = [
@@ -730,16 +740,6 @@ export function executeAction(
         newState.events = [
           ...newState.events,
           createEvent(newState, action.type, 'failure', 'Whole blood withheld — 450 mL volume not specified.'),
-        ];
-        break;
-      }
-      if (!isWholeBloodRequired(newState)) {
-        messages.push(
-          'Radial pulses are present. Whole blood is not required; you may skip this step.',
-        );
-        newState.events = [
-          ...newState.events,
-          createEvent(newState, action.type, 'info', 'Whole blood not required — radial pulses present.'),
         ];
         break;
       }

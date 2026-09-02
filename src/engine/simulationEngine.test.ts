@@ -178,6 +178,20 @@ describe('simulation engine', () => {
   it('requires whole blood to complete circulation only when radial pulses are absent', () => {
     let present = createInitialState(scenario001);
     present = executeAction(present, { type: 'check_radial_pulse', rawInput: 'check radial pulse' }, scenario001).state;
+    const skippedBeforeLock = executeAction(
+      present,
+      {
+        type: 'administer_whole_blood',
+        parameters: { volumeMl: 450 },
+        rawInput: 'Administer 450cc of low titer O whole blood',
+      },
+      scenario001,
+    );
+    expect(skippedBeforeLock.state.wholeBloodAdministered).toBe(false);
+    expect(skippedBeforeLock.messages).toContain(
+      'Radial pulses are present. Whole blood is not required; you may skip this step.',
+    );
+
     present = executeAction(present, { type: 'initiate_saline_lock', rawInput: 'initiate saline lock' }, scenario001).state;
     present = executeAction(
       present,
