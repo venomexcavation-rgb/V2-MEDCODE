@@ -8,6 +8,7 @@ import type {
 } from './types';
 import { locationsMatch, type AnatomicalLocation } from '@/lib/locations';
 import { generateAAR } from './aar';
+import { getAvpuResult, hasAssessedAvpu } from './avpu';
 
 let eventCounter = 0;
 
@@ -225,13 +226,19 @@ export function executeAction(
   newState = { ...newState, performedAssessments: performed };
 
   switch (action.type) {
+    case 'assess_avpu':
     case 'check_responsiveness': {
-      messages.push(
-        `You attempt to get the casualty's attention. The casualty groans and moves slightly — responsive to verbal stimuli but appears confused and in distress.`,
-      );
+      const avpu = getAvpuResult(newState.physiology.consciousness);
+      const alreadyAssessed = hasAssessedAvpu(state);
+      if (alreadyAssessed) {
+        messages.push(`AVPU already assessed. Current finding: ${avpu.summary}. ${avpu.observation}`);
+      } else {
+        messages.push('You assess AVPU (Alert, Verbal, Pain, Unresponsive).');
+        messages.push(`${avpu.summary}. ${avpu.observation}`);
+      }
       newState.events = [
         ...newState.events,
-        createEvent(newState, action.type, 'info', 'Responsiveness assessed — casualty responds to verbal stimuli.'),
+        createEvent(newState, action.type, 'info', `AVPU assessed — ${avpu.summary}.`),
       ];
       break;
     }

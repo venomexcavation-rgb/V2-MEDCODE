@@ -16,7 +16,7 @@ interface LogEntry {
 }
 
 const QUICK_ACTIONS = [
-  { label: 'Assess', commands: ['Check for massive hemorrhage', 'Assess airway', 'Assess breathing', 'Check radial pulse'] },
+  { label: 'Assess', commands: ['Checking AVPU', 'Check for massive hemorrhage', 'Assess airway', 'Assess breathing', 'Check radial pulse'] },
   { label: 'Expose', commands: ['Expose the left leg', 'Expose the chest'] },
   { label: 'Intervention', commands: ['Apply tourniquet high and tight to the left leg', 'Apply chest seal to right chest', 'Initiate IV access', 'Initiate saline lock', 'Administer 2 grams TXA', 'Prevent hypothermia'] },
   { label: 'Reassess', commands: ['Reassess bleeding', 'Reassess breathing', 'Reassess circulation'] },

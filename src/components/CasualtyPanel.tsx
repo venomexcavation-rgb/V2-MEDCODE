@@ -1,5 +1,6 @@
 import type { SimulationState } from '@/engine/types';
 import type { ScenarioDefinition } from '@/engine/types';
+import { getAvpuResult, hasAssessedAvpu } from '@/engine/avpu';
 
 interface CasualtyPanelProps {
   state: SimulationState;
@@ -11,7 +12,7 @@ function NotAssessed() {
 }
 
 export function CasualtyPanel({ state, scenario }: CasualtyPanelProps) {
-  const hasAssessedResponsiveness = state.performedAssessments.includes('check_responsiveness');
+  const hasAssessedAvpuCheck = hasAssessedAvpu(state);
   const hasAssessedPulse =
     state.performedAssessments.includes('check_radial_pulse') ||
     state.performedAssessments.includes('assess_circulation');
@@ -50,9 +51,9 @@ export function CasualtyPanel({ state, scenario }: CasualtyPanelProps) {
       </div>
 
       <div className="info-row">
-        <span className="info-label">Responsiveness</span>
-        {hasAssessedResponsiveness ? (
-          <span className="info-value">{state.physiology.consciousness.toUpperCase()}</span>
+        <span className="info-label">AVPU</span>
+        {hasAssessedAvpuCheck ? (
+          <span className="info-value">{getAvpuResult(state.physiology.consciousness).summary.toUpperCase()}</span>
         ) : (
           <NotAssessed />
         )}

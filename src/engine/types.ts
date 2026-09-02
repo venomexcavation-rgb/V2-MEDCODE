@@ -5,6 +5,7 @@ export type MarchLetter = 'M' | 'A' | 'R' | 'C' | 'H';
 export type MarchStatus = 'UNKNOWN' | 'ASSESSING' | 'CONCERN' | 'TREATED' | 'STABLE';
 
 export type ActionType =
+  | 'assess_avpu'
   | 'check_responsiveness'
   | 'assess_massive_hemorrhage'
   | 'blood_sweep'

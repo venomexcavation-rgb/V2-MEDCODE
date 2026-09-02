@@ -8,7 +8,7 @@ export interface ParseResult {
 }
 
 const ACTION_PATTERNS: { pattern: RegExp; type: ActionType; needsLocation?: boolean }[] = [
-  { pattern: /check\s*(for\s*)?responsiveness|tap\s*shoulder|are\s*you\s*ok|hey\s*man|wake\s*up/, type: 'check_responsiveness' },
+  { pattern: /\b(assessing|checking|assess|check)\s+(for\s+)?avpu\b|\bavpu\b/, type: 'assess_avpu' },
   { pattern: /assess\s*(for\s*)?massive\s*hemorrhage|check\s*(for\s*)?massive\s*bleeding|major\s*bleeding|life.?threatening\s*bleed/, type: 'assess_massive_hemorrhage' },
   { pattern: /blood\s*sweep|sweep\s*(for\s*)?blood|check\s*(for\s*)?blood/, type: 'blood_sweep' },
   { pattern: /expose|remove\s*clothing|cut\s*away|pull\s*up\s*pant|roll\s*up\s*sleeve|access\s*wound/, type: 'expose', needsLocation: true },

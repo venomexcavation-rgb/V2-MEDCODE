@@ -4,6 +4,7 @@ import { parseActionInput } from '@/engine/actionParser';
 import { createInitialState, scenario001 } from '@/scenarios/scenario001';
 import { executeAction, resetEventCounter, tickSimulation } from '@/engine/simulationEngine';
 import { generateAAR } from '@/engine/aar';
+import { getAvpuResult } from '@/engine/avpu';
 
 describe('locationsMatch', () => {
   it('matches exact locations', () => {
@@ -55,6 +56,12 @@ describe('parseActionInput', () => {
     const result = parseActionInput('Put a tourniquet on him');
     expect(result.success).toBe(false);
     expect(result.clarification).toContain('Where');
+  });
+
+  it('parses Assessing AVPU and Checking AVPU', () => {
+    expect(parseActionInput('Assessing AVPU').action?.type).toBe('assess_avpu');
+    expect(parseActionInput('Checking AVPU').action?.type).toBe('assess_avpu');
+    expect(parseActionInput('assess AVPU').action?.type).toBe('assess_avpu');
   });
 });
 
@@ -151,5 +158,38 @@ describe('simulation engine', () => {
     expect(given.state.txaAdministered).toBe(true);
     expect(given.messages).toContain('You administer 2 grams of TXA through the saline lock.');
     expect(['TREATED', 'STABLE']).toContain(given.state.marchStatus.C);
+  });
+
+  it('reports AVPU from current casualty condition and accepts the assessment', () => {
+    let state = createInitialState(scenario001);
+    expect(state.physiology.consciousness).toBe('verbal');
+
+    const verbal = executeAction(state, { type: 'assess_avpu', rawInput: 'Checking AVPU' }, scenario001);
+    expect(verbal.messages).toContain('You assess AVPU (Alert, Verbal, Pain, Unresponsive).');
+    expect(verbal.messages.some((m) => m.startsWith('V — Verbal'))).toBe(true);
+    expect(verbal.state.performedAssessments).toContain('assess_avpu');
+    expect(getAvpuResult(verbal.state.physiology.consciousness).letter).toBe('V');
+
+    const again = executeAction(verbal.state, { type: 'assess_avpu', rawInput: 'Assessing AVPU' }, scenario001);
+    expect(again.messages[0]).toContain('AVPU already assessed');
+    expect(again.messages[0]).toContain('V — Verbal');
+
+    const unresponsiveState = {
+      ...createInitialState(scenario001),
+      physiology: { ...createInitialState(scenario001).physiology, consciousness: 'unresponsive' as const },
+    };
+    const unresponsive = executeAction(
+      unresponsiveState,
+      { type: 'assess_avpu', rawInput: 'Checking AVPU' },
+      scenario001,
+    );
+    expect(unresponsive.messages.some((m) => m.startsWith('U — Unresponsive'))).toBe(true);
+
+    const painState = {
+      ...createInitialState(scenario001),
+      physiology: { ...createInitialState(scenario001).physiology, consciousness: 'pain' as const },
+    };
+    const pain = executeAction(painState, { type: 'assess_avpu', rawInput: 'Assessing AVPU' }, scenario001);
+    expect(pain.messages.some((m) => m.startsWith('P — Pain'))).toBe(true);
   });
 });

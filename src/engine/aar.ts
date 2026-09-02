@@ -70,6 +70,7 @@ function getPerformanceBand(score: number): PerformanceBand {
 
 function buildTimeline(events: SimulationEvent[]): TimelineEntry[] {
   const significantActions = new Set([
+    'assess_avpu',
     'check_responsiveness',
     'assess_massive_hemorrhage',
     'blood_sweep',
@@ -109,7 +110,7 @@ function detectMissedFindings(state: SimulationState): string[] {
 function detectUnnecessaryInterventions(state: SimulationState): string[] {
   const unnecessary: string[] = [];
   for (const intervention of state.interventions) {
-    if (!intervention.effective && intervention.type !== 'check_responsiveness') {
+    if (!intervention.effective && intervention.type !== 'check_responsiveness' && intervention.type !== 'assess_avpu') {
       unnecessary.push(
         `${intervention.type.replace(/_/g, ' ')} at ${intervention.location ?? 'unknown location'} — ineffective or inappropriate`,
       );

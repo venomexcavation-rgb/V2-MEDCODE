@@ -264,26 +264,28 @@ export const scenario001: ScenarioDefinition = {
   ],
   scoreRules: [
     {
-      id: 'score-responsiveness',
-      label: 'Responsiveness assessed',
+      id: 'score-avpu',
+      label: 'AVPU assessed',
       category: 'critical',
       maxPoints: 5,
       critical: false,
-      detail: 'Initial responsiveness check performed.',
-      teaching: 'Always establish responsiveness before detailed assessment.',
-      evaluate: (state) =>
-        makeCheck(
-          'score-responsiveness',
-          'Responsiveness assessed',
+      detail: 'Initial AVPU (Alert, Verbal, Pain, Unresponsive) check performed.',
+      teaching: 'Begin the encounter by assessing AVPU.',
+      evaluate: (state) => {
+        const done =
+          state.performedAssessments.includes('assess_avpu') ||
+          state.performedAssessments.includes('check_responsiveness');
+        return makeCheck(
+          'score-avpu',
+          'AVPU assessed',
           'critical',
           5,
-          state.performedAssessments.includes('check_responsiveness'),
+          done,
           false,
-          state.performedAssessments.includes('check_responsiveness')
-            ? 'Responsiveness was assessed early in the encounter.'
-            : 'Responsiveness was not formally assessed.',
-          'Begin every encounter by checking responsiveness.',
-        ),
+          done ? 'AVPU was assessed.' : 'AVPU was not assessed.',
+          'Use Checking AVPU or Assessing AVPU to record mental status.',
+        );
+      },
     },
     {
       id: 'score-mh-identified',
@@ -636,6 +638,7 @@ export const scenario001: ScenarioDefinition = {
   ],
   actionTimeCosts: {
     check_responsiveness: 8,
+    assess_avpu: 8,
     assess_massive_hemorrhage: 12,
     blood_sweep: 18,
     expose: 15,
