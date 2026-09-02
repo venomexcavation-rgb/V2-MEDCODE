@@ -14,11 +14,13 @@ export default defineConfig({
     },
   },
   server: {
-    host: true,
+    host: '0.0.0.0',
+    port: 5173,
+    // Cursor cloud previews use *.cursorvm.com; true also covers other forwarded hosts.
     allowedHosts: true,
   },
   preview: {
-    host: true,
+    host: '0.0.0.0',
     allowedHosts: true,
   },
 });
