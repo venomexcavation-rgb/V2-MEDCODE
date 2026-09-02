@@ -762,6 +762,7 @@ export const scenario003: ScenarioDefinition = {
       label: 'Intervention',
       commands: [
         'Apply tourniquet high and tight to the right leg',
+        'Hasty tourniquet applied to leg',
         'Apply chest seal to left chest',
         'Initiate IV access',
         'Initiate saline lock',

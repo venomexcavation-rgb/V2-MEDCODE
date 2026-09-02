@@ -47,6 +47,21 @@ function massiveHemorrhageFindings(state: SimulationState) {
   });
 }
 
+function resolveTourniquetLocation(
+  state: SimulationState,
+  action: StructuredAction,
+): AnatomicalLocation | undefined {
+  if (action.location && action.location !== 'unknown') return action.location;
+  if (action.parameters?.target !== 'affected_limb') return undefined;
+
+  const discovered = massiveHemorrhageFindings(state).find(
+    (f) => state.discoveredFindingIds.includes(f.id) && f.location,
+  );
+  if (discovered?.location) return discovered.location;
+
+  return state.injuries.find((i) => i.requiresTourniquet && !i.controlled)?.location;
+}
+
 function openChestFindings(state: SimulationState) {
   return state.findings.filter(
     (f) => f.category === 'R' && !!f.location && (f.location.includes('chest') || f.location === 'chest'),
@@ -336,7 +351,11 @@ export function executeAction(
     }
 
     case 'apply_tourniquet': {
-      const loc = action.location!;
+      const loc = resolveTourniquetLocation(newState, action);
+      if (!loc) {
+        messages.push('Specify which extremity is receiving the tourniquet.');
+        break;
+      }
       const targetInjury = newState.injuries.find(
         (i) => i.requiresTourniquet && locationsMatch(loc, i.location),
       );
@@ -395,7 +414,8 @@ export function executeAction(
         );
       }
 
-      const highAndTight = action.parameters?.placement === 'high_and_tight' || /high/i.test(action.rawInput);
+      const highAndTight =
+        action.parameters?.placement === 'high_and_tight' || /high|hasty/i.test(action.rawInput);
       newState.injuries = newState.injuries.map((i) =>
         i.id === targetInjury.id ? { ...i, controlled: true, bleedingRateMlPerMin: 0 } : i,
       );

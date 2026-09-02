@@ -60,11 +60,27 @@ function hasFourFiftyWholeBloodVolume(input: string): boolean {
   return /450\s*(cc|ml|milliliters?)\b/.test(normalized);
 }
 
+function isHighAndTightPasskey(input: string): boolean {
+  return /high\s*and\s*tight|high\s*&\s*tight|hasty\s+(?:tourniquet|torniquet|tq)/i.test(input);
+}
+
+function isAffectedLimbTourniquetPasskey(input: string): boolean {
+  if (/\b(left|right)\b/i.test(input)) return false;
+  return (
+    /hasty\s+(?:tourniquet|torniquet|tq).*(?:applied\s+to|to)\s+(?:the\s+)?(?:affected\s+)?(?:limb|leg|extremity)\b/i.test(
+      input,
+    ) || /\b(?:applied\s+to|to)\s+(?:the\s+)?affected\s+(?:limb|leg|extremity)\b/i.test(input)
+  );
+}
+
 function extractParameters(input: string, type: ActionType): Record<string, string | boolean | number> {
   const params: Record<string, string | boolean | number> = {};
   if (type === 'apply_tourniquet') {
-    if (/high\s*and\s*tight|high\s*&\s*tight|hasty\s+(?:tourniquet|torniquet|tq)/i.test(input)) {
+    if (isHighAndTightPasskey(input)) {
       params.placement = 'high_and_tight';
+    }
+    if (isAffectedLimbTourniquetPasskey(input)) {
+      params.target = 'affected_limb';
     }
   }
   if (type === 'administer_txa' && hasTwoGramTxaDose(input)) {
@@ -104,7 +120,10 @@ export function parseActionInput(rawInput: string): ParseResult {
         };
       }
 
-      if (needsLocation && !location) {
+      const affectedLimbPasskey =
+        type === 'apply_tourniquet' && parameters.target === 'affected_limb';
+
+      if (needsLocation && !location && !affectedLimbPasskey) {
         const locationPrompts: Partial<Record<ActionType, string>> = {
           apply_tourniquet: 'Where are you applying the tourniquet?',
           pack_wound: 'Which wound are you packing? Specify the anatomical location.',
