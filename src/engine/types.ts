@@ -142,6 +142,8 @@ export interface SimulationState {
   wholeBloodAdministered: boolean;
   /** What the medic found on radial-pulse assessment. Drives whole-blood requirement. */
   radialPulseFinding?: 'present' | 'absent';
+  /** Timestamp of the last full intervention reassessment required before tactical evacuation. */
+  preEvacReassessmentAt?: number;
   dialogueHistory: string[];
   completionReason?: string;
   aar?: import('@/engine/aar').AARResult;

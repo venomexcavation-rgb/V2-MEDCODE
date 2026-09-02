@@ -5,6 +5,7 @@ import { createInitialState, scenario001 } from '@/scenarios/scenario001';
 import { scenario003 } from '@/scenarios/scenario003';
 import { executeAction, resetEventCounter, tickSimulation } from '@/engine/simulationEngine';
 import { MASSIVE_HEMORRHAGE_FAIL_REASON } from '@/engine/hemorrhageDeadline';
+import { PRE_EVAC_REASSESS_PROMPT } from '@/engine/reassessment';
 import { generateAAR } from '@/engine/aar';
 import { getAvpuResult } from '@/engine/avpu';
 
@@ -92,6 +93,11 @@ describe('parseActionInput', () => {
     expect(parseActionInput('Assessing AVPU').action?.type).toBe('assess_avpu');
     expect(parseActionInput('Checking AVPU').action?.type).toBe('assess_avpu');
     expect(parseActionInput('assess AVPU').action?.type).toBe('assess_avpu');
+  });
+
+  it('parses reassess all interventions and tactical evacuation', () => {
+    expect(parseActionInput('reassess all interventions').action?.type).toBe('reassess_general');
+    expect(parseActionInput('Initiate tactical evacuation').action?.type).toBe('request_evacuation');
   });
 });
 
@@ -263,6 +269,69 @@ describe('simulation engine', () => {
     expect(result.state.elapsedSeconds).toBeGreaterThan(300);
     expect(result.state.status).toBe('failed');
     expect(result.messages).toContain(MASSIVE_HEMORRHAGE_FAIL_REASON);
+  });
+
+  it('reports bleeding has continued when hemorrhage is reassessed untreated', () => {
+    let state = createInitialState(scenario003);
+    state = executeAction(state, { type: 'blood_sweep', rawInput: 'blood sweep' }, scenario003).state;
+    const result = executeAction(state, { type: 'reassess_hemorrhage', rawInput: 'reassess bleeding' }, scenario003);
+    expect(result.messages.some((m) => /bleeding has continued/i.test(m))).toBe(true);
+  });
+
+  it('blocks tactical evacuation until all interventions are reassessed', () => {
+    let state = createInitialState(scenario003);
+    state = executeAction(state, { type: 'blood_sweep', rawInput: 'blood sweep' }, scenario003).state;
+    state = executeAction(
+      state,
+      {
+        type: 'apply_tourniquet',
+        location: 'right_leg',
+        parameters: { placement: 'high_and_tight' },
+        rawInput: 'hasty tourniquet applied to leg',
+      },
+      scenario003,
+    ).state;
+
+    const blocked = executeAction(state, { type: 'request_evacuation', rawInput: 'initiate tactical evacuation' }, scenario003);
+    expect(blocked.messages).toContain(PRE_EVAC_REASSESS_PROMPT);
+    expect(blocked.state.performedAssessments.includes('request_evacuation')).toBe(false);
+    expect(blocked.state.events.some((e) => e.action === 'request_evacuation' && e.result === 'success')).toBe(false);
+
+    const reassessed = executeAction(
+      blocked.state,
+      { type: 'reassess_general', rawInput: 'reassess all interventions' },
+      scenario003,
+    );
+    expect(reassessed.messages.some((m) => /bleeding has stopped/i.test(m))).toBe(true);
+    expect(reassessed.state.preEvacReassessmentAt).toBeDefined();
+
+    const evac = executeAction(
+      reassessed.state,
+      { type: 'request_evacuation', rawInput: 'initiate tactical evacuation' },
+      scenario003,
+    );
+    expect(evac.messages).toContain('All interventions reassessed. Tactical evacuation initiated.');
+    expect(evac.state.performedAssessments).toContain('request_evacuation');
+  });
+
+  it('requires a new intervention reassessment if care continues after the last check', () => {
+    let state = createInitialState(scenario001);
+    state = executeAction(state, { type: 'blood_sweep', rawInput: 'blood sweep' }, scenario001).state;
+    state = executeAction(
+      state,
+      {
+        type: 'apply_tourniquet',
+        location: 'left_leg',
+        parameters: { placement: 'high_and_tight' },
+        rawInput: 'tq left leg high and tight',
+      },
+      scenario001,
+    ).state;
+    state = executeAction(state, { type: 'reassess_general', rawInput: 'reassess all interventions' }, scenario001).state;
+    state = executeAction(state, { type: 'prevent_hypothermia', rawInput: 'prevent hypothermia' }, scenario001).state;
+
+    const blocked = executeAction(state, { type: 'request_evacuation', rawInput: 'request evacuation' }, scenario001);
+    expect(blocked.messages).toContain(PRE_EVAC_REASSESS_PROMPT);
   });
 
   it('generates AAR from event history', () => {

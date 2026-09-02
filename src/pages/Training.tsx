@@ -19,8 +19,8 @@ const DEFAULT_QUICK_ACTIONS = [
   { label: 'Assess', commands: ['Checking AVPU', 'Check for massive hemorrhage', 'Assess airway', 'Assess breathing', 'Check radial pulse'] },
   { label: 'Expose', commands: ['Expose the left leg', 'Expose the chest'] },
   { label: 'Intervention', commands: ['Apply tourniquet high and tight to the left leg', 'Hasty tourniquet applied to leg', 'Apply chest seal to right chest', 'Initiate IV access', 'Initiate saline lock', 'Administer 2 grams TXA', 'Administer 450mL of low titer O whole blood', 'Prevent hypothermia'] },
-  { label: 'Reassess', commands: ['Reassess bleeding', 'Reassess breathing', 'Reassess circulation'] },
-  { label: 'Complete', commands: ['Request evacuation', 'End scenario'] },
+    { label: 'Reassess', commands: ['Reassess bleeding', 'Reassess all interventions', 'Reassess breathing', 'Reassess circulation'] },
+    { label: 'Complete', commands: ['Initiate tactical evacuation', 'End scenario'] },
 ];
 
 export function Training() {

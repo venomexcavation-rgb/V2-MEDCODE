@@ -14,6 +14,11 @@ import {
   failedMassiveHemorrhageDeadline,
   MASSIVE_HEMORRHAGE_FAIL_REASON,
 } from './hemorrhageDeadline';
+import {
+  buildInterventionReassessment,
+  hasCompletedPreEvacReassessment,
+  PRE_EVAC_REASSESS_PROMPT,
+} from './reassessment';
 
 let eventCounter = 0;
 
@@ -613,9 +618,9 @@ export function executeAction(
       const criticalInjury = newState.injuries.find((i) => i.requiresTourniquet);
       const site = locationLabel(criticalInjury?.location);
       if (criticalInjury?.controlled) {
-        messages.push(`Reassessment: No active bleeding from the ${site}. Tourniquet appears effective.`);
+        messages.push(`Reassessment: Bleeding has stopped at the ${site}. Tourniquet appears effective.`);
       } else if (criticalInjury) {
-        messages.push(`Reassessment: Severe bleeding continues from the ${site}. Hemorrhage is NOT controlled.`);
+        messages.push(`Reassessment: Bleeding has continued from the ${site}. Hemorrhage is NOT controlled.`);
       } else {
         messages.push(`Reassessment: No uncontrolled massive hemorrhage identified.`);
       }
@@ -627,22 +632,37 @@ export function executeAction(
     }
 
     case 'reassess_general': {
-      messages.push(`You perform a general reassessment of the casualty's condition.`);
-      messages.push(
-        `Mental status: ${newState.physiology.mentalStatusNote}. Pulse: ${newState.physiology.radialPulsePresent ? newState.physiology.radialPulseQuality : 'absent'}.`,
-      );
+      messages.push('You reassess all interventions before tactical evacuation.');
+      const findings = buildInterventionReassessment(newState);
+      messages.push(...findings);
+      newState.preEvacReassessmentAt = newState.elapsedSeconds;
       newState.events = [
         ...newState.events,
-        createEvent(newState, action.type, 'info', 'General reassessment completed.'),
+        createEvent(newState, action.type, 'info', 'All interventions reassessed.', {
+          stateChanges: ['pre_evac_reassessment'],
+        }),
       ];
       break;
     }
 
     case 'request_evacuation': {
-      messages.push(`You request evacuation. MEDEVAC coordination initiated.`);
+      if (!hasCompletedPreEvacReassessment(newState)) {
+        messages.push(PRE_EVAC_REASSESS_PROMPT);
+        newState.performedAssessments = newState.performedAssessments.filter(
+          (item) => item !== 'request_evacuation',
+        );
+        newState.events = [
+          ...newState.events,
+          createEvent(newState, action.type, 'failure', PRE_EVAC_REASSESS_PROMPT),
+        ];
+        break;
+      }
+      messages.push('All interventions reassessed. Tactical evacuation initiated.');
       newState.events = [
         ...newState.events,
-        createEvent(newState, action.type, 'success', 'Evacuation requested.'),
+        createEvent(newState, action.type, 'success', 'Tactical evacuation initiated.', {
+          interventionEffective: true,
+        }),
       ];
       break;
     }

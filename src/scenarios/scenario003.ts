@@ -361,6 +361,55 @@ export const scenario003: ScenarioDefinition = {
       },
     },
     {
+      id: 'score-pre-evac-reassessment',
+      label: 'Interventions reassessed before tactical evacuation',
+      category: 'reassessment',
+      maxPoints: 15,
+      critical: false,
+      detail: 'All interventions reassessed before initiating tactical evacuation.',
+      teaching: 'Reassess every intervention before tactical evacuation.',
+      evaluate: (state) => {
+        const evacRequested = state.events.some(
+          (event) => event.action === 'request_evacuation' && event.result === 'success',
+        );
+        const reassessed = state.preEvacReassessmentAt !== undefined;
+        if (!evacRequested) {
+          return makeCheck(
+            'score-pre-evac-reassessment',
+            'Interventions reassessed before tactical evacuation',
+            'reassessment',
+            15,
+            reassessed,
+            false,
+            reassessed
+              ? 'Interventions were reassessed.'
+              : 'Interventions were not reassessed before handoff.',
+            'Before tactical evacuation, reassess all interventions.',
+          );
+        }
+        const ordered =
+          reassessed &&
+          !state.events.some(
+            (event) =>
+              event.action === 'request_evacuation' &&
+              event.result === 'success' &&
+              event.timestamp < (state.preEvacReassessmentAt ?? 0),
+          );
+        return makeCheck(
+          'score-pre-evac-reassessment',
+          'Interventions reassessed before tactical evacuation',
+          'reassessment',
+          15,
+          ordered,
+          false,
+          ordered
+            ? 'All interventions were reassessed before tactical evacuation.'
+            : 'Tactical evacuation was initiated without reassessment of interventions.',
+          'Before tactical evacuation, reassess all interventions.',
+        );
+      },
+    },
+    {
       id: 'score-airway',
       label: 'Airway assessed',
       category: 'airway',
@@ -619,9 +668,10 @@ export const scenario003: ScenarioDefinition = {
     },
     {
       type: 'evacuation',
-      description: 'Evacuation requested after stabilization',
+      description: 'Tactical evacuation requested after interventions were reassessed',
       check: (state) =>
         state.performedAssessments.includes('request_evacuation') &&
+        state.preEvacReassessmentAt !== undefined &&
         state.injuries.filter((i) => i.requiresTourniquet).every((i) => i.controlled),
     },
     {
@@ -780,8 +830,8 @@ export const scenario003: ScenarioDefinition = {
         'Prevent hypothermia',
       ],
     },
-    { label: 'Reassess', commands: ['Reassess bleeding', 'Reassess breathing', 'Reassess circulation'] },
-    { label: 'Complete', commands: ['Request evacuation', 'End scenario'] },
+    { label: 'Reassess', commands: ['Reassess bleeding', 'Reassess all interventions', 'Reassess breathing', 'Reassess circulation'] },
+    { label: 'Complete', commands: ['Initiate tactical evacuation', 'End scenario'] },
   ],
 };
 

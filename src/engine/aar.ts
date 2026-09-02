@@ -91,6 +91,7 @@ function buildTimeline(events: SimulationEvent[]): TimelineEntry[] {
     'reassess_hemorrhage',
     'reassess_breathing',
     'reassess_circulation',
+    'reassess_general',
     'prevent_hypothermia',
     'initiate_iv_access',
     'initiate_saline_lock',
@@ -162,6 +163,10 @@ function detectSequenceDeviations(state: SimulationState): string[] {
 
   if (state.tourniquetAppliedAt && !state.events.some((e) => e.action === 'reassess_hemorrhage' && e.timestamp > (state.tourniquetAppliedAt ?? 0))) {
     deviations.push('Tourniquet was applied without subsequent hemorrhage reassessment.');
+  }
+
+  if (state.events.some((e) => e.action === 'request_evacuation' && e.result === 'failure')) {
+    deviations.push('Tactical evacuation was attempted before all interventions were reassessed.');
   }
 
   return deviations;

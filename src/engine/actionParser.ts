@@ -28,14 +28,14 @@ const ACTION_PATTERNS: { pattern: RegExp; type: ActionType; needsLocation?: bool
   { pattern: /reassess\s*breathing|reassess\s*respiration|check\s*breathing\s*again/, type: 'reassess_breathing' },
   { pattern: /reassess\s*circulation|reassess\s*pulse|check\s*pulse\s*again/, type: 'reassess_circulation' },
   { pattern: /reassess\s*airway/, type: 'reassess_airway' },
-  { pattern: /reassess|secondary\s*survey|repeat\s*assessment/, type: 'reassess_general' },
+  { pattern: /reassess\s+(all\s+)?interventions|reassess\s+(the\s+)?casualty|secondary\s*survey|repeat\s*assessment|\breassess\b/, type: 'reassess_general' },
   { pattern: /log\s*roll|roll\s*(the\s*)?casualty/, type: 'log_roll' },
   { pattern: /initiate\s*(an?\s*)?(iv|intravenous)\s*access|start\s*(an?\s*)?iv|iv\s*access/, type: 'initiate_iv_access' },
   { pattern: /initiate\s*(a\s*)?saline\s*lock|saline\s*lock|hep(\-|\s*)lock/, type: 'initiate_saline_lock' },
   { pattern: /\btxa\b|tranexamic/, type: 'administer_txa' },
   { pattern: /prevent\s*hypothermia|apply\s*(a\s*)?(blanket|hypothermia\s*(kit|prevention)|hpmk)|cover\s*(the\s*)?(casualty|patient)|insulate|keep\s*(him|them|the\s*casualty)\s*warm/, type: 'prevent_hypothermia' },
   { pattern: /end\s*(the\s*)?scenario|complete\s*(the\s*)?scenario|stop\s*(the\s*)?simulation|finish\s*(the\s*)?(scenario|training)/, type: 'end_scenario' },
-  { pattern: /evac|request\s*medevac|call\s*for\s*help|9.?line|request\s*evacuation/, type: 'request_evacuation' },
+  { pattern: /evac|request\s*medevac|call\s*for\s*help|9.?line|request\s*evacuation|tactical\s*evac|tacevac/, type: 'request_evacuation' },
 ];
 
 function inferLocationFromContext(input: string, actionType: ActionType): AnatomicalLocation | undefined {
