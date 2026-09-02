@@ -25,6 +25,17 @@ npm run test
 npm run build
 ```
 
+## ChatGPT / Codex in Cursor
+
+To let **ChatGPT (Codex)** view and edit this project inside Cursor:
+
+1. Install the **OpenAI Codex** extension (`openai.chatgpt`) in Cursor
+2. Open this repo and sign in via **Codex: Open Codex Sidebar**
+3. Trust the workspace when prompted
+4. Follow the full setup guide: [docs/CODEX_SETUP.md](docs/CODEX_SETUP.md)
+
+Codex reads `AGENTS.md` for project context and `src/engine/AGENTS.md` for simulation engine rules.
+
 ## V1 Features
 
 - Dashboard with MARCH performance tracking
