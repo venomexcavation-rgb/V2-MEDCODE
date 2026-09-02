@@ -10,6 +10,10 @@ import { locationsMatch, type AnatomicalLocation } from '@/lib/locations';
 import { generateAAR } from './aar';
 import { getAvpuResult, hasAssessedAvpu } from './avpu';
 import { hasAssessedRadialPulse, isCirculationComplete, isWholeBloodRequired } from './circulation';
+import {
+  failedMassiveHemorrhageDeadline,
+  MASSIVE_HEMORRHAGE_FAIL_REASON,
+} from './hemorrhageDeadline';
 
 let eventCounter = 0;
 
@@ -203,6 +207,15 @@ function checkCompletion(
   state: SimulationState,
   scenario: ScenarioDefinition,
 ): SimulationState {
+  if (failedMassiveHemorrhageDeadline(state)) {
+    const failed = {
+      ...state,
+      status: 'failed' as const,
+      completionReason: MASSIVE_HEMORRHAGE_FAIL_REASON,
+    };
+    return { ...failed, aar: generateAAR(failed, scenario) };
+  }
+
   for (const criteria of scenario.failureCriteria) {
     if (criteria.check(state)) {
       const aar = generateAAR({ ...state, status: 'failed' }, scenario);
@@ -875,6 +888,9 @@ export function executeAction(
   }
 
   newState = checkCompletion(newState, scenario);
+  if (newState.status === 'failed' && newState.completionReason) {
+    messages.push(newState.completionReason);
+  }
 
   return { state: newState, messages };
 }

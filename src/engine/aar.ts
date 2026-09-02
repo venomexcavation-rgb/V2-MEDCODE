@@ -10,6 +10,7 @@ import type {
 import type { ScenarioDefinition } from './types';
 import { formatDuration } from '@/lib/formatDuration';
 import { evaluateScenarioTcccRules, getScenarioTcccGuidelineVersion } from '@/data/tccc';
+import { failedMassiveHemorrhageDeadline, MASSIVE_HEMORRHAGE_FAIL_REASON } from './hemorrhageDeadline';
 
 export interface AARResult {
   missionResult: 'SUCCESS' | 'PARTIAL SUCCESS' | 'FAILURE';
@@ -349,7 +350,9 @@ export function generateAAR(
 
   const casualtyOutcome =
     state.status === 'failed'
-      ? 'Casualty deteriorated beyond recovery due to untreated critical injuries.'
+      ? failedMassiveHemorrhageDeadline(state)
+        ? MASSIVE_HEMORRHAGE_FAIL_REASON
+        : 'Casualty deteriorated beyond recovery due to untreated critical injuries.'
       : state.physiology.shockState === 'none' || state.physiology.shockState === 'compensated'
         ? 'Casualty stabilized with controlled hemorrhage and adequate perfusion.'
         : 'Casualty partially stabilized — continued monitoring required during evacuation.';

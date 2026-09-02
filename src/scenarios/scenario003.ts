@@ -3,6 +3,10 @@ import type {
   CheckResult,
 } from '@/engine/types';
 import { locationsMatch } from '@/lib/locations';
+import {
+  failedMassiveHemorrhageDeadline,
+  MASSIVE_HEMORRHAGE_FAIL_REASON,
+} from '@/engine/hemorrhageDeadline';
 
 function makeCheck(
   id: string,
@@ -627,6 +631,11 @@ export const scenario003: ScenarioDefinition = {
     },
   ],
   failureCriteria: [
+    {
+      type: 'failure',
+      description: MASSIVE_HEMORRHAGE_FAIL_REASON,
+      check: failedMassiveHemorrhageDeadline,
+    },
     {
       type: 'failure',
       description: 'Exsanguination',

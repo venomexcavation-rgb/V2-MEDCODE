@@ -7,6 +7,10 @@ import type {
 } from '@/engine/types';
 import { locationsMatch } from '@/lib/locations';
 import { scenario003 } from './scenario003';
+import {
+  failedMassiveHemorrhageDeadline,
+  MASSIVE_HEMORRHAGE_FAIL_REASON,
+} from '@/engine/hemorrhageDeadline';
 
 const INITIAL_MARCH: Record<MarchLetter, MarchStatus> = {
   M: 'UNKNOWN',
@@ -674,6 +678,11 @@ export const scenario001: ScenarioDefinition = {
     },
   ],
   failureCriteria: [
+    {
+      type: 'failure',
+      description: MASSIVE_HEMORRHAGE_FAIL_REASON,
+      check: failedMassiveHemorrhageDeadline,
+    },
     {
       type: 'failure',
       description: 'Exsanguination',

@@ -4,6 +4,7 @@ import { parseActionInput } from '@/engine/actionParser';
 import { createInitialState, scenario001 } from '@/scenarios/scenario001';
 import { scenario003 } from '@/scenarios/scenario003';
 import { executeAction, resetEventCounter, tickSimulation } from '@/engine/simulationEngine';
+import { MASSIVE_HEMORRHAGE_FAIL_REASON } from '@/engine/hemorrhageDeadline';
 import { generateAAR } from '@/engine/aar';
 import { getAvpuResult } from '@/engine/avpu';
 
@@ -203,6 +204,65 @@ describe('simulation engine', () => {
     let state = createInitialState(scenario001);
     state = tickSimulation(state, scenario001, 120);
     expect(state.physiology.bloodLossMl).toBeGreaterThan(200);
+  });
+
+  it('fails the scenario if massive hemorrhage is not controlled within 5 minutes', () => {
+    let state = createInitialState(scenario001);
+    state = tickSimulation(state, scenario001, 299);
+    expect(state.status).toBe('active');
+
+    state = tickSimulation(state, scenario001, 1);
+    expect(state.status).toBe('failed');
+    expect(state.completionReason).toBe(MASSIVE_HEMORRHAGE_FAIL_REASON);
+    expect(state.aar?.missionResult).toBe('FAILURE');
+    expect(state.aar?.casualtyOutcome).toBe(MASSIVE_HEMORRHAGE_FAIL_REASON);
+  });
+
+  it('fails scenario 003 at 5 minutes without hemorrhage control', () => {
+    let state = createInitialState(scenario003);
+    state = tickSimulation(state, scenario003, 300);
+    expect(state.status).toBe('failed');
+    expect(state.completionReason).toBe(MASSIVE_HEMORRHAGE_FAIL_REASON);
+  });
+
+  it('does not fail at 5 minutes when hemorrhage was already controlled', () => {
+    let state = createInitialState(scenario001);
+    state = executeAction(state, { type: 'blood_sweep', rawInput: 'blood sweep' }, scenario001).state;
+    state = executeAction(
+      state,
+      {
+        type: 'apply_tourniquet',
+        location: 'left_leg',
+        parameters: { placement: 'high_and_tight' },
+        rawInput: 'tq left leg high and tight',
+      },
+      scenario001,
+    ).state;
+    expect(state.hemorrhageControlledAt).toBeLessThanOrEqual(300);
+    expect(state.status).toBe('active');
+
+    state = tickSimulation(state, scenario001, 300);
+    expect(state.status).not.toBe('failed');
+  });
+
+  it('fails if the tourniquet lands after the 5-minute mark', () => {
+    let state = createInitialState(scenario003);
+    state = tickSimulation(state, scenario003, 290);
+    expect(state.status).toBe('active');
+
+    const result = executeAction(
+      state,
+      {
+        type: 'apply_tourniquet',
+        location: 'right_leg',
+        parameters: { placement: 'high_and_tight' },
+        rawInput: 'hasty tourniquet applied to leg',
+      },
+      scenario003,
+    );
+    expect(result.state.elapsedSeconds).toBeGreaterThan(300);
+    expect(result.state.status).toBe('failed');
+    expect(result.messages).toContain(MASSIVE_HEMORRHAGE_FAIL_REASON);
   });
 
   it('generates AAR from event history', () => {

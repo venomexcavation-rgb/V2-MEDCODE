@@ -85,7 +85,9 @@ export function Training() {
           {
             id: `end-${Date.now()}`,
             type: 'system',
-            text: `Scenario ${state.status.toUpperCase()}. Redirecting to After Action Review…`,
+            text: state.completionReason
+              ? `Scenario ${state.status.toUpperCase()}. ${state.completionReason} Redirecting to After Action Review…`
+              : `Scenario ${state.status.toUpperCase()}. Redirecting to After Action Review…`,
           },
         ]);
         setTimeout(() => {
