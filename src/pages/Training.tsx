@@ -15,7 +15,7 @@ interface LogEntry {
   text: string;
 }
 
-const QUICK_ACTIONS = [
+const DEFAULT_QUICK_ACTIONS = [
   { label: 'Assess', commands: ['Checking AVPU', 'Check for massive hemorrhage', 'Assess airway', 'Assess breathing', 'Check radial pulse'] },
   { label: 'Expose', commands: ['Expose the left leg', 'Expose the chest'] },
   { label: 'Intervention', commands: ['Apply tourniquet high and tight to the left leg', 'Apply chest seal to right chest', 'Initiate IV access', 'Initiate saline lock', 'Administer 2 grams TXA', 'Administer 450mL of low titer O whole blood', 'Prevent hypothermia'] },
@@ -217,7 +217,7 @@ export function Training() {
           </div>
           <div className="sim-input-area">
             <div className="quick-actions">
-              {QUICK_ACTIONS.map((qa) => (
+              {(scenario.quickActionGroups ?? DEFAULT_QUICK_ACTIONS).map((qa) => (
                 <div key={qa.label} style={{ position: 'relative' }}>
                   <button
                     className="quick-btn"

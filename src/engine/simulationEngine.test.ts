@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { locationsMatch, parseLocationFromText } from '@/lib/locations';
 import { parseActionInput } from '@/engine/actionParser';
 import { createInitialState, scenario001 } from '@/scenarios/scenario001';
+import { scenario003 } from '@/scenarios/scenario003';
 import { executeAction, resetEventCounter, tickSimulation } from '@/engine/simulationEngine';
 import { generateAAR } from '@/engine/aar';
 import { getAvpuResult } from '@/engine/avpu';
@@ -90,6 +91,38 @@ describe('simulation engine', () => {
     );
     expect(result.state.discoveredFindingIds).toContain('finding-left-leg-hemorrhage');
     expect(result.messages.some((m) => m.includes('amputation'))).toBe(true);
+  });
+
+  it('runs scenario 003 gunshot hemorrhage discovery on the right thigh', () => {
+    let state = createInitialState(scenario003);
+    expect(state.scenarioId).toBe('SCENARIO-003');
+    const result = executeAction(state, { type: 'blood_sweep', rawInput: 'blood sweep' }, scenario003);
+    expect(result.state.discoveredFindingIds).toContain('finding-right-thigh-hemorrhage');
+    expect(result.messages.some((m) => m.toLowerCase().includes('right thigh'))).toBe(true);
+
+    state = executeAction(
+      result.state,
+      {
+        type: 'apply_tourniquet',
+        location: 'right_leg',
+        parameters: { placement: 'high_and_tight' },
+        rawInput: 'tq right leg high and tight',
+      },
+      scenario003,
+    ).state;
+    expect(state.injuries.find((i) => i.id === 'inj-right-thigh-gsw')?.controlled).toBe(true);
+  });
+
+  it('rejects a left-leg tourniquet on scenario 003 right-thigh hemorrhage', () => {
+    let state = createInitialState(scenario003);
+    state = executeAction(state, { type: 'blood_sweep', rawInput: 'blood sweep' }, scenario003).state;
+    const result = executeAction(
+      state,
+      { type: 'apply_tourniquet', location: 'left_leg', rawInput: 'tq left leg' },
+      scenario003,
+    );
+    expect(result.state.injuries.find((i) => i.id === 'inj-right-thigh-gsw')?.controlled).toBe(false);
+    expect(result.messages.some((m) => m.includes('continues elsewhere'))).toBe(true);
   });
 
   it('rejects wrong-side tourniquet', () => {

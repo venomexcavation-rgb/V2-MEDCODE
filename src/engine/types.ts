@@ -222,6 +222,8 @@ export interface ScenarioDefinition {
   requiredTcccRules?: string[];
   /** Scenario-local event-log evidence for those rule IDs. Does not quote TCCC text. */
   tcccEvidenceBindings?: TcccEvidenceBinding[];
+  /** Optional trainee quick-action menus for this scenario. */
+  quickActionGroups?: { label: string; commands: string[] }[];
 }
 
 export interface TrainingRecord {

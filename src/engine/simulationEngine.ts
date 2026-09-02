@@ -36,6 +36,23 @@ function createEvent(
   };
 }
 
+function locationLabel(location: AnatomicalLocation | undefined): string {
+  return (location ?? 'wound').replace(/_/g, ' ');
+}
+
+function massiveHemorrhageFindings(state: SimulationState) {
+  return state.findings.filter((f) => {
+    if (f.category !== 'M' || !f.location) return false;
+    return state.injuries.some((i) => i.requiresTourniquet && locationsMatch(f.location, i.location));
+  });
+}
+
+function openChestFindings(state: SimulationState) {
+  return state.findings.filter(
+    (f) => f.category === 'R' && !!f.location && (f.location.includes('chest') || f.location === 'chest'),
+  );
+}
+
 function assessmentKey(type: StructuredAction['type'], location?: AnatomicalLocation): string {
   if (type === 'expose' && location) return `expose_${location}`;
   if (type === 'check_penetrating_chest_trauma') return 'check_penetrating_chest_trauma';
@@ -97,10 +114,10 @@ function updateMarchStatus(state: SimulationState): Record<MarchLetter, MarchSta
     'A',
     state.performedAssessments.includes('assess_airway') && state.physiology.airwayPatent,
   );
-  updateLetter(
-    'R',
-    state.chestSealed || !state.discoveredFindingIds.includes('finding-right-chest-wound'),
+  const openChestDiscovered = openChestFindings(state).some((f) =>
+    state.discoveredFindingIds.includes(f.id),
   );
+  updateLetter('R', state.chestSealed || !openChestDiscovered);
 
   const circulationComplete = isCirculationComplete(state);
   updateLetter('C', circulationComplete);
@@ -132,7 +149,10 @@ function getCasualtyDialogue(state: SimulationState): string | undefined {
   if (respiratoryDistress) {
     return 'Casualty (gasping): "Can\'t… breathe…"';
   }
-  if (state.discoveredFindingIds.includes('finding-left-leg-hemorrhage') && !state.hemorrhageControlledAt) {
+  if (
+    massiveHemorrhageFindings(state).some((f) => state.discoveredFindingIds.includes(f.id)) &&
+    !state.hemorrhageControlledAt
+  ) {
     return 'Casualty (screaming): "Fuck—that hurts! My leg!"';
   }
   if (consciousness === 'confused' || consciousness === 'verbal') {
@@ -268,7 +288,10 @@ export function executeAction(
       const discovery = discoverFindings(newState, 'blood_sweep');
       newState = discovery.state;
       messages.push(...discovery.messages);
-      if (discovery.discovered.includes('finding-left-leg-hemorrhage') && !newState.massiveHemorrhageIdentifiedAt) {
+      if (
+        massiveHemorrhageFindings(newState).some((f) => discovery.discovered.includes(f.id)) &&
+        !newState.massiveHemorrhageIdentifiedAt
+      ) {
         newState.massiveHemorrhageIdentifiedAt = newState.elapsedSeconds;
       }
       newState.events = [
@@ -291,10 +314,13 @@ export function executeAction(
       const discovery = discoverFindings(newState, exposeKey);
       newState = discovery.state;
       // Generic expose for leg
-      if (loc.includes('leg')) {
-        const legDiscovery = discoverFindings(newState, 'expose_left_leg');
-        newState = legDiscovery.state;
-        messages.push(...legDiscovery.messages);
+      if (loc.includes('leg') || loc.includes('thigh') || loc.includes('foot')) {
+        const side = loc.startsWith('left') ? 'left' : loc.startsWith('right') ? 'right' : undefined;
+        if (side) {
+          const legDiscovery = discoverFindings(newState, `expose_${side}_leg`);
+          newState = legDiscovery.state;
+          messages.push(...legDiscovery.messages);
+        }
       }
       if (loc.includes('chest') || loc === 'chest') {
         const chestDiscovery = discoverFindings(newState, 'expose_chest');
@@ -360,9 +386,12 @@ export function executeAction(
         break;
       }
 
-      if (!newState.discoveredFindingIds.includes('finding-left-leg-hemorrhage')) {
+      const relatedHemorrhage = massiveHemorrhageFindings(newState).find(
+        (f) => f.location && locationsMatch(loc, f.location),
+      );
+      if (relatedHemorrhage && !newState.discoveredFindingIds.includes(relatedHemorrhage.id)) {
         messages.push(
-          `You apply a tourniquet to the ${loc.replace(/_/g, ' ')}. Without proper exposure, placement may be suboptimal.`,
+          `You apply a tourniquet to the ${locationLabel(loc)}. Without proper exposure, placement may be suboptimal.`,
         );
       }
 
@@ -450,7 +479,10 @@ export function executeAction(
         ];
         break;
       }
-      if (!newState.discoveredFindingIds.includes('finding-right-chest-wound')) {
+      const chestFinding = openChestFindings(newState).find(
+        (f) => f.location && locationsMatch(loc, f.location),
+      );
+      if (chestFinding && !newState.discoveredFindingIds.includes(chestFinding.id)) {
         messages.push(`You attempt to seal the chest, but the wound has not been adequately exposed or identified.`);
         break;
       }
@@ -546,10 +578,11 @@ export function executeAction(
 
     case 'reassess_hemorrhage': {
       const criticalInjury = newState.injuries.find((i) => i.requiresTourniquet);
+      const site = locationLabel(criticalInjury?.location);
       if (criticalInjury?.controlled) {
-        messages.push(`Reassessment: No active bleeding from the left lower leg. Tourniquet appears effective.`);
+        messages.push(`Reassessment: No active bleeding from the ${site}. Tourniquet appears effective.`);
       } else if (criticalInjury) {
-        messages.push(`Reassessment: Severe bleeding continues from the left lower leg. Hemorrhage is NOT controlled.`);
+        messages.push(`Reassessment: Severe bleeding continues from the ${site}. Hemorrhage is NOT controlled.`);
       } else {
         messages.push(`Reassessment: No uncontrolled massive hemorrhage identified.`);
       }
