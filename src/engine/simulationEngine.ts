@@ -9,6 +9,7 @@ import type {
 import { locationsMatch, type AnatomicalLocation } from '@/lib/locations';
 import { generateAAR } from './aar';
 import { getAvpuResult, hasAssessedAvpu } from './avpu';
+import { hasAssessedRadialPulse, isCirculationComplete, isWholeBloodRequired } from './circulation';
 
 let eventCounter = 0;
 
@@ -101,7 +102,7 @@ function updateMarchStatus(state: SimulationState): Record<MarchLetter, MarchSta
     state.chestSealed || !state.discoveredFindingIds.includes('finding-right-chest-wound'),
   );
 
-  const circulationComplete = state.salineLockInitiated && state.txaAdministered;
+  const circulationComplete = isCirculationComplete(state);
   updateLetter('C', circulationComplete);
   if (march.C === 'CONCERN' && circulationComplete) {
     march.C = 'STABLE';
@@ -527,6 +528,7 @@ export function executeAction(
     case 'reassess_circulation': {
       const discovery = discoverFindings(newState, 'check_radial_pulse');
       newState = discovery.state;
+      newState.radialPulseFinding = newState.physiology.radialPulsePresent ? 'present' : 'absent';
       const pulse = newState.physiology.radialPulsePresent
         ? `Radial pulse is ${newState.physiology.radialPulseQuality}.`
         : 'Radial pulse is absent.';
@@ -589,6 +591,14 @@ export function executeAction(
     }
 
     case 'initiate_iv_access': {
+      if (!hasAssessedRadialPulse(state)) {
+        messages.push('Assess for radial pulses before initiating IV access.');
+        newState.events = [
+          ...newState.events,
+          createEvent(newState, action.type, 'failure', 'IV withheld — radial pulses not assessed.'),
+        ];
+        break;
+      }
       if (newState.ivAccessInitiated || newState.salineLockInitiated) {
         messages.push(
           newState.ivAccessInitiated
@@ -690,6 +700,77 @@ export function executeAction(
         createEvent(newState, action.type, 'success', '2 grams TXA administered through saline lock.', {
           interventionEffective: true,
           stateChanges: ['txa'],
+        }),
+      ];
+      break;
+    }
+
+    case 'administer_whole_blood': {
+      const volumeMl = typeof action.parameters?.volumeMl === 'number' ? action.parameters.volumeMl : undefined;
+      if (!hasAssessedRadialPulse(state)) {
+        messages.push('Assess for radial pulses before administering whole blood.');
+        newState.events = [
+          ...newState.events,
+          createEvent(newState, action.type, 'failure', 'Whole blood withheld — radial pulses not assessed.'),
+        ];
+        break;
+      }
+      if (!newState.salineLockInitiated) {
+        messages.push('Initiate a saline lock before administering whole blood.');
+        newState.events = [
+          ...newState.events,
+          createEvent(newState, action.type, 'failure', 'Whole blood withheld — saline lock not initiated.'),
+        ];
+        break;
+      }
+      if (volumeMl !== 450) {
+        messages.push(
+          'Specify 450 cc or 450 mL. Use: Administer 450cc of low titer O whole blood or Administer 450mL of low titer O whole blood.',
+        );
+        newState.events = [
+          ...newState.events,
+          createEvent(newState, action.type, 'failure', 'Whole blood withheld — 450 mL volume not specified.'),
+        ];
+        break;
+      }
+      if (!isWholeBloodRequired(newState)) {
+        messages.push(
+          'Radial pulses are present. Whole blood is not required; you may skip this step.',
+        );
+        newState.events = [
+          ...newState.events,
+          createEvent(newState, action.type, 'info', 'Whole blood not required — radial pulses present.'),
+        ];
+        break;
+      }
+      if (newState.wholeBloodAdministered) {
+        messages.push('450 mL of low titer O whole blood has already been administered.');
+        newState.events = [
+          ...newState.events,
+          createEvent(newState, action.type, 'info', 'Whole blood already administered.', {
+            interventionEffective: true,
+            stateChanges: ['whole_blood'],
+          }),
+        ];
+        break;
+      }
+      newState.wholeBloodAdministered = true;
+      newState.interventions = [
+        ...newState.interventions,
+        {
+          id: nextEventId(),
+          type: action.type,
+          timestamp: newState.elapsedSeconds,
+          effective: true,
+          parameters: { volumeMl: 450 },
+        },
+      ];
+      messages.push('You administer 450 mL of low titer O whole blood through the saline lock.');
+      newState.events = [
+        ...newState.events,
+        createEvent(newState, action.type, 'success', '450 mL low titer O whole blood administered.', {
+          interventionEffective: true,
+          stateChanges: ['whole_blood'],
         }),
       ];
       break;

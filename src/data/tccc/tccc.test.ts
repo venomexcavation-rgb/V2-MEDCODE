@@ -149,9 +149,14 @@ describe('TCCC guideline layer', () => {
     expect(state.hemorrhageControlledAt).toBeUndefined();
   });
 
-  it('completes circulation only after saline lock then 2 grams TXA', () => {
+  it('completes circulation after pulse check, saline lock, and TXA when radials are present', () => {
     let state = createInitialState(scenario001);
+    const ivBlocked = executeAction(state, { type: 'initiate_iv_access', rawInput: 'initiate IV access' }, scenario001);
+    expect(ivBlocked.state.ivAccessInitiated).toBe(false);
+    expect(ivBlocked.messages).toContain('Assess for radial pulses before initiating IV access.');
+
     state = executeAction(state, { type: 'check_radial_pulse', rawInput: 'check radial pulse' }, scenario001).state;
+    expect(state.radialPulseFinding).toBe('present');
     expect(state.marchStatus.C).not.toBe('TREATED');
     expect(state.marchStatus.C).not.toBe('STABLE');
 
@@ -161,28 +166,28 @@ describe('TCCC guideline layer', () => {
     expect(afterIv.marchStatus.C).not.toBe('STABLE');
 
     const txaBeforeLock = executeAction(
-      createInitialState(scenario001),
+      state,
       { type: 'administer_txa', parameters: { doseGrams: 2 }, rawInput: 'administer 2 grams TXA' },
       scenario001,
     );
     expect(txaBeforeLock.state.txaAdministered).toBe(false);
     expect(txaBeforeLock.messages.some((m) => m.toLowerCase().includes('saline lock'))).toBe(true);
-    expect(txaBeforeLock.state.marchStatus.C).not.toBe('TREATED');
 
-    let salineState = createInitialState(scenario001);
-    salineState = executeAction(
-      salineState,
+    let salineState = executeAction(
+      state,
       { type: 'initiate_saline_lock', rawInput: 'initiate saline lock' },
       scenario001,
     ).state;
     expect(salineState.salineLockInitiated).toBe(true);
     expect(salineState.marchStatus.C).not.toBe('TREATED');
-    expect(salineState.marchStatus.C).not.toBe('STABLE');
     expect(evaluateScenarioTcccRules(salineState, scenario001).results.find((r) => r.ruleId === 'TCCC-C-001')?.outcome).toBe(
       'completed',
     );
     expect(evaluateScenarioTcccRules(salineState, scenario001).results.find((r) => r.ruleId === 'TCCC-C-003')?.outcome).toBe(
       'missed',
+    );
+    expect(evaluateScenarioTcccRules(salineState, scenario001).results.find((r) => r.ruleId === 'TCCC-C-004')?.outcome).toBe(
+      'not_applicable',
     );
 
     const afterTxa = executeAction(
@@ -197,12 +202,43 @@ describe('TCCC guideline layer', () => {
     );
   });
 
-  it('parses initiate saline lock and administer 2 grams TXA', () => {
+  it('requires 450 mL low titer O whole blood when radial pulses are absent', () => {
+    let state = createInitialState(scenario001);
+    state = {
+      ...state,
+      physiology: { ...state.physiology, radialPulsePresent: false, radialPulseQuality: 'absent', shockState: 'decompensated' },
+    };
+    state = executeAction(state, { type: 'check_radial_pulse', rawInput: 'check radial pulse' }, scenario001).state;
+    expect(state.radialPulseFinding).toBe('absent');
+    state = executeAction(state, { type: 'initiate_saline_lock', rawInput: 'initiate saline lock' }, scenario001).state;
+    state = executeAction(
+      state,
+      { type: 'administer_txa', parameters: { doseGrams: 2 }, rawInput: 'administer 2 grams TXA' },
+      scenario001,
+    ).state;
+    expect(state.txaAdministered).toBe(true);
+    expect(state.marchStatus.C).not.toBe('TREATED');
+    expect(state.marchStatus.C).not.toBe('STABLE');
+
+    const blood = executeAction(
+      state,
+      { type: 'administer_whole_blood', parameters: { volumeMl: 450 }, rawInput: 'Administer 450mL of low titer O whole blood' },
+      scenario001,
+    );
+    expect(blood.state.wholeBloodAdministered).toBe(true);
+    expect(['TREATED', 'STABLE']).toContain(blood.state.marchStatus.C);
+    expect(evaluateScenarioTcccRules(blood.state, scenario001).results.find((r) => r.ruleId === 'TCCC-C-004')?.outcome).toBe(
+      'completed',
+    );
+  });
+
+  it('parses initiate saline lock, TXA, and 450 cc/mL low titer O whole blood', () => {
     expect(parseActionInput('Initiate IV access').action?.type).toBe('initiate_iv_access');
     expect(parseActionInput('Initiate saline lock').action?.type).toBe('initiate_saline_lock');
     expect(parseActionInput('administer 2 grams TXA').action?.type).toBe('administer_txa');
-    expect(parseActionInput('administer 2 grams TXA').action?.parameters?.doseGrams).toBe(2);
-    expect(parseActionInput('administer TXA').success).toBe(false);
-    expect(parseActionInput('administer TXA').clarification).toContain('administer 2 grams TXA');
+    expect(parseActionInput('Administer 450cc of low titer O whole blood').action?.type).toBe('administer_whole_blood');
+    expect(parseActionInput('Administer 450mL of low titer O whole blood').action?.parameters?.volumeMl).toBe(450);
+    expect(parseActionInput('administer whole blood').success).toBe(false);
+    expect(parseActionInput('administer whole blood').clarification).toContain('450');
   });
 });

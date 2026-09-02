@@ -58,6 +58,21 @@ export function evaluateTcccEvidenceBinding(
     };
   }
 
+  if (binding.requiresAbsentRadialPulse) {
+    if (state.radialPulseFinding === 'present') {
+      return {
+        outcome: 'not_applicable',
+        evidenceDetail: 'Radial pulses were present; whole blood was not required.',
+      };
+    }
+    if (state.radialPulseFinding !== 'absent') {
+      return {
+        outcome: 'missed',
+        evidenceDetail: 'Radial pulses were not assessed; whole-blood indication is unknown.',
+      };
+    }
+  }
+
   switch (binding.kind) {
     case 'assessment_performed': {
       const actions = binding.requiredActions ?? [];
@@ -235,8 +250,8 @@ export function evaluateScenarioTcccRules(
 
     let outcome: TcccRuleResult['outcome'] = 'missed';
     if (incorrect) outcome = 'incorrect';
-    else if (completed) outcome = 'completed';
     else if (evaluations.every((e) => e.outcome === 'not_applicable')) outcome = 'not_applicable';
+    else if (completed) outcome = 'completed';
 
     return {
       ruleId: rule.id,

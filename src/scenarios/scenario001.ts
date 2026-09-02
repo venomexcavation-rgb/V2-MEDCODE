@@ -191,6 +191,7 @@ export const scenario001: ScenarioDefinition = {
     ivAccessInitiated: false,
     salineLockInitiated: false,
     txaAdministered: false,
+    wholeBloodAdministered: false,
   },
   deteriorationRules: [
     {
@@ -493,7 +494,7 @@ export const scenario001: ScenarioDefinition = {
           state.performedAssessments.includes('check_radial_pulse')
             ? 'Radial pulse assessed.'
             : 'Circulation not fully assessed.',
-          'Assess radial pulse quality and skin signs for shock.',
+          'Assess radial pulses before initiating IV access. Absent radials require 450 mL low titer O whole blood after the saline lock.',
         ),
     },
     {
@@ -514,7 +515,7 @@ export const scenario001: ScenarioDefinition = {
           done,
           false,
           done ? 'Saline lock was initiated.' : 'A saline lock was not initiated.',
-          'Initiate a saline lock to begin circulation.',
+          'Initiate a saline lock. This is required for circulation whether or not whole blood is given.',
         );
       },
     },
@@ -541,6 +542,55 @@ export const scenario001: ScenarioDefinition = {
               ? 'Saline lock is in place, but 2 grams TXA was not administered.'
               : '2 grams TXA was not administered. Initiate a saline lock first.',
           'After the saline lock, administer 2 grams TXA.',
+        );
+      },
+    },
+    {
+      id: 'score-circulation-whole-blood',
+      label: 'Whole blood when radial pulses absent',
+      category: 'circulation',
+      maxPoints: 15,
+      critical: false,
+      detail: '450 mL low titer O whole blood if radial pulses are absent.',
+      teaching:
+        'If radial pulses are absent after hypovolemic shock, administer 450 mL of low titer O whole blood through the saline lock. If radials are present, this step may be skipped.',
+      evaluate: (state) => {
+        if (state.radialPulseFinding === 'present') {
+          return makeCheck(
+            'score-circulation-whole-blood',
+            'Whole blood when radial pulses absent',
+            'circulation',
+            15,
+            true,
+            false,
+            'Radial pulses were present. Whole blood was not required.',
+            'Skip 450 mL low titer O whole blood when radial pulses are present.',
+          );
+        }
+        if (state.radialPulseFinding !== 'absent') {
+          return makeCheck(
+            'score-circulation-whole-blood',
+            'Whole blood when radial pulses absent',
+            'circulation',
+            15,
+            false,
+            false,
+            'Radial pulses were not assessed, so whole-blood indication is unknown.',
+            'Assess radial pulses before deciding on whole blood.',
+          );
+        }
+        const done = state.wholeBloodAdministered;
+        return makeCheck(
+          'score-circulation-whole-blood',
+          'Whole blood when radial pulses absent',
+          'circulation',
+          15,
+          done,
+          false,
+          done
+            ? '450 mL of low titer O whole blood was administered.'
+            : 'Radial pulses were absent, but 450 mL low titer O whole blood was not administered.',
+          'After the saline lock, administer 450cc or 450mL of low titer O whole blood.',
         );
       },
     },
@@ -660,6 +710,7 @@ export const scenario001: ScenarioDefinition = {
     initiate_iv_access: 20,
     initiate_saline_lock: 15,
     administer_txa: 15,
+    administer_whole_blood: 20,
     reassess_airway: 8,
     reassess_general: 15,
     log_roll: 20,
@@ -676,6 +727,7 @@ export const scenario001: ScenarioDefinition = {
     'TCCC-R-002',
     'TCCC-C-001',
     'TCCC-C-003',
+    'TCCC-C-004',
     'TCCC-H-001',
     'TCCC-TEV-001',
   ],
@@ -730,6 +782,13 @@ export const scenario001: ScenarioDefinition = {
       kind: 'effective_intervention',
       requiredActions: ['administer_txa'],
       requireEffective: true,
+    },
+    {
+      ruleId: 'TCCC-C-004',
+      kind: 'effective_intervention',
+      requiredActions: ['administer_whole_blood'],
+      requireEffective: true,
+      requiresAbsentRadialPulse: true,
     },
     {
       ruleId: 'TCCC-H-001',

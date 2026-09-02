@@ -34,5 +34,6 @@ export const TACTICAL_FIELD_CARE_RULES: TcccRule[] = [
   pendingTfc('TCCC-C-001', 'Tactical Field Care — saline lock (pending verification)', 'C'),
   pendingTfc('TCCC-C-002', 'Tactical Field Care — circulation reassessment after hemorrhage control (pending verification)', 'C'),
   pendingTfc('TCCC-C-003', 'Tactical Field Care — TXA after saline lock (pending verification)', 'C'),
+  pendingTfc('TCCC-C-004', 'Tactical Field Care — whole blood for absent radial pulses (pending verification)', 'C'),
   pendingTfc('TCCC-H-001', 'Tactical Field Care — hypothermia prevention (pending verification)', 'H'),
 ];

@@ -9,6 +9,7 @@ export interface ParseResult {
 
 const ACTION_PATTERNS: { pattern: RegExp; type: ActionType; needsLocation?: boolean }[] = [
   { pattern: /\b(assessing|checking|assess|check)\s+(for\s+)?avpu\b|\bavpu\b/, type: 'assess_avpu' },
+  { pattern: /administer\s+450\s*(cc|ml|milliliters?)\s+(of\s+)?low[\s-]*titer\s+o[\s-]*whole\s+blood|450\s*(cc|ml)\s+(of\s+)?low[\s-]*titer\s+o[\s-]*whole\s+blood|low[\s-]*titer\s+o[\s-]*whole\s+blood|ltowb|whole\s+blood/, type: 'administer_whole_blood' },
   { pattern: /assess\s*(for\s*)?massive\s*hemorrhage|check\s*(for\s*)?massive\s*bleeding|major\s*bleeding|life.?threatening\s*bleed/, type: 'assess_massive_hemorrhage' },
   { pattern: /blood\s*sweep|sweep\s*(for\s*)?blood|check\s*(for\s*)?blood/, type: 'blood_sweep' },
   { pattern: /expose|remove\s*clothing|cut\s*away|pull\s*up\s*pant|roll\s*up\s*sleeve|access\s*wound/, type: 'expose', needsLocation: true },
@@ -54,6 +55,11 @@ function hasTwoGramTxaDose(input: string): boolean {
   return /(?:2|two)\s*(?:g|gm|grams?)\b/.test(normalized) && /txa|tranexamic/.test(normalized);
 }
 
+function hasFourFiftyWholeBloodVolume(input: string): boolean {
+  const normalized = input.toLowerCase();
+  return /450\s*(cc|ml|milliliters?)\b/.test(normalized);
+}
+
 function extractParameters(input: string, type: ActionType): Record<string, string | boolean | number> {
   const params: Record<string, string | boolean | number> = {};
   if (type === 'apply_tourniquet') {
@@ -63,6 +69,9 @@ function extractParameters(input: string, type: ActionType): Record<string, stri
   }
   if (type === 'administer_txa' && hasTwoGramTxaDose(input)) {
     params.doseGrams = 2;
+  }
+  if (type === 'administer_whole_blood' && hasFourFiftyWholeBloodVolume(input)) {
+    params.volumeMl = 450;
   }
   return params;
 }
@@ -84,6 +93,14 @@ export function parseActionInput(rawInput: string): ParseResult {
         return {
           success: false,
           clarification: 'Specify the TXA dose. Use: administer 2 grams TXA.',
+        };
+      }
+
+      if (type === 'administer_whole_blood' && parameters.volumeMl !== 450) {
+        return {
+          success: false,
+          clarification:
+            'Specify the whole blood volume. Use: Administer 450cc of low titer O whole blood or Administer 450mL of low titer O whole blood.',
         };
       }
 

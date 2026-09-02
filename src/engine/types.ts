@@ -34,6 +34,7 @@ export type ActionType =
   | 'initiate_iv_access'
   | 'initiate_saline_lock'
   | 'administer_txa'
+  | 'administer_whole_blood'
   | 'unknown';
 
 export interface StructuredAction {
@@ -138,6 +139,9 @@ export interface SimulationState {
   ivAccessInitiated: boolean;
   salineLockInitiated: boolean;
   txaAdministered: boolean;
+  wholeBloodAdministered: boolean;
+  /** What the medic found on radial-pulse assessment. Drives whole-blood requirement. */
+  radialPulseFinding?: 'present' | 'absent';
   dialogueHistory: string[];
   completionReason?: string;
   aar?: import('@/engine/aar').AARResult;

@@ -123,6 +123,17 @@ export function CasualtyPanel({ state, scenario }: CasualtyPanelProps) {
       </div>
 
       <div className="info-row">
+        <span className="info-label">Whole blood</span>
+        {state.wholeBloodAdministered ? (
+          <span className="info-value">450 ML LTOWB</span>
+        ) : state.radialPulseFinding === 'present' ? (
+          <span className="info-value">NOT INDICATED</span>
+        ) : (
+          <NotAssessed />
+        )}
+      </div>
+
+      <div className="info-row">
         <span className="info-label">Hypothermia prevention</span>
         {state.hypothermiaPreventionApplied ? (
           <span className="info-value">COVERED / INSULATED</span>

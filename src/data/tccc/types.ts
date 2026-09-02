@@ -63,6 +63,8 @@ export interface TcccEvidenceBinding {
   afterAction?: ActionType;
   /** If set, the check is not applicable until this finding is discovered. */
   requiresDiscoveredFindingId?: string;
+  /** If set, this check is not applicable unless radial pulses were found absent. */
+  requiresAbsentRadialPulse?: boolean;
 }
 
 export type TcccRuleOutcome =

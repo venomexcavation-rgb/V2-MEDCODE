@@ -52,6 +52,17 @@ describe('parseActionInput', () => {
     expect(missingDose.clarification).toContain('administer 2 grams TXA');
   });
 
+  it('parses 450 cc and 450 mL low titer O whole blood pass keys', () => {
+    const cc = parseActionInput('Administer 450cc of low titer O whole blood');
+    expect(cc.success).toBe(true);
+    expect(cc.action?.type).toBe('administer_whole_blood');
+    expect(cc.action?.parameters?.volumeMl).toBe(450);
+
+    const ml = parseActionInput('Administer 450mL of low titer O whole blood');
+    expect(ml.success).toBe(true);
+    expect(ml.action?.type).toBe('administer_whole_blood');
+  });
+
   it('asks for clarification when location missing', () => {
     const result = parseActionInput('Put a tourniquet on him');
     expect(result.success).toBe(false);
@@ -157,7 +168,76 @@ describe('simulation engine', () => {
     );
     expect(given.state.txaAdministered).toBe(true);
     expect(given.messages).toContain('You administer 2 grams of TXA through the saline lock.');
-    expect(['TREATED', 'STABLE']).toContain(given.state.marchStatus.C);
+    expect(given.state.marchStatus.C).not.toBe('TREATED');
+
+    const pulsed = executeAction(given.state, { type: 'check_radial_pulse', rawInput: 'check radial pulse' }, scenario001).state;
+    expect(pulsed.radialPulseFinding).toBe('present');
+    expect(['TREATED', 'STABLE']).toContain(pulsed.marchStatus.C);
+  });
+
+  it('requires whole blood to complete circulation only when radial pulses are absent', () => {
+    let present = createInitialState(scenario001);
+    present = executeAction(present, { type: 'check_radial_pulse', rawInput: 'check radial pulse' }, scenario001).state;
+    present = executeAction(present, { type: 'initiate_saline_lock', rawInput: 'initiate saline lock' }, scenario001).state;
+    present = executeAction(
+      present,
+      { type: 'administer_txa', parameters: { doseGrams: 2 }, rawInput: 'administer 2 grams TXA' },
+      scenario001,
+    ).state;
+    expect(['TREATED', 'STABLE']).toContain(present.marchStatus.C);
+
+    const skipped = executeAction(
+      present,
+      {
+        type: 'administer_whole_blood',
+        parameters: { volumeMl: 450 },
+        rawInput: 'Administer 450cc of low titer O whole blood',
+      },
+      scenario001,
+    );
+    expect(skipped.state.wholeBloodAdministered).toBe(false);
+    expect(skipped.messages).toContain(
+      'Radial pulses are present. Whole blood is not required; you may skip this step.',
+    );
+
+    let absent = createInitialState(scenario001);
+    absent = {
+      ...absent,
+      physiology: { ...absent.physiology, radialPulsePresent: false, radialPulseQuality: 'absent', shockState: 'decompensated' },
+    };
+    const bloodBeforePulse = executeAction(
+      absent,
+      { type: 'administer_whole_blood', parameters: { volumeMl: 450 }, rawInput: 'Administer 450mL of low titer O whole blood' },
+      scenario001,
+    );
+    expect(bloodBeforePulse.state.wholeBloodAdministered).toBe(false);
+    expect(bloodBeforePulse.messages).toContain('Assess for radial pulses before administering whole blood.');
+
+    absent = executeAction(absent, { type: 'check_radial_pulse', rawInput: 'check radial pulse' }, scenario001).state;
+    const bloodBeforeLock = executeAction(
+      absent,
+      { type: 'administer_whole_blood', parameters: { volumeMl: 450 }, rawInput: 'Administer 450mL of low titer O whole blood' },
+      scenario001,
+    );
+    expect(bloodBeforeLock.state.wholeBloodAdministered).toBe(false);
+    expect(bloodBeforeLock.messages).toContain('Initiate a saline lock before administering whole blood.');
+
+    absent = executeAction(absent, { type: 'initiate_saline_lock', rawInput: 'initiate saline lock' }, scenario001).state;
+    absent = executeAction(
+      absent,
+      { type: 'administer_txa', parameters: { doseGrams: 2 }, rawInput: 'administer 2 grams TXA' },
+      scenario001,
+    ).state;
+    expect(absent.marchStatus.C).not.toBe('TREATED');
+
+    const givenBlood = executeAction(
+      absent,
+      { type: 'administer_whole_blood', parameters: { volumeMl: 450 }, rawInput: 'Administer 450cc of low titer O whole blood' },
+      scenario001,
+    );
+    expect(givenBlood.state.wholeBloodAdministered).toBe(true);
+    expect(givenBlood.messages).toContain('You administer 450 mL of low titer O whole blood through the saline lock.');
+    expect(['TREATED', 'STABLE']).toContain(givenBlood.state.marchStatus.C);
   });
 
   it('reports AVPU from current casualty condition and accepts the assessment', () => {
