@@ -16,6 +16,11 @@ Tactical casualty simulation platform for U.S. Army 68W Combat Medic training.
 
 AI handles interaction. Deterministic code handles medical truth.
 
+## Live demo
+
+- Dashboard: https://venomexcavation-rgb.github.io/V2-MEDCODE/
+- Scenario 001: https://venomexcavation-rgb.github.io/V2-MEDCODE/training/SCENARIO-001
+
 ## Development
 
 ```bash
