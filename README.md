@@ -22,11 +22,43 @@ AI handles interaction. Deterministic code handles medical truth.
 - Scenario 001: https://venomexcavation-rgb.github.io/V2-MEDCODE/training/SCENARIO-001
 - Scenario 003: https://venomexcavation-rgb.github.io/V2-MEDCODE/training/SCENARIO-003
 
+## Run it on your computer
+
+The public GitHub Pages link is not live yet, so run it locally:
+
+1. Install **Node.js LTS** from https://nodejs.org (this also installs `npm`).
+2. Open a terminal in an empty folder and run:
+
+```bash
+git clone https://github.com/venomexcavation-rgb/V2-MEDCODE.git
+cd V2-MEDCODE
+git checkout main
+git pull origin main
+npm install
+npm start
+```
+
+3. Leave that terminal open. When it says the server is ready, open **http://localhost:5173** in your browser.
+4. Click **Scenarios**, then **Gunshot Wound — Urban** (SCENARIO-003).
+
+You must be in the folder that contains `package.json` and `src/components/MarchTracker.tsx`. Do not use the `gh-pages` branch.
+
+If you already cloned the repo and saw `Failed to resolve import "@/components/MarchTracker"`:
+
+```bash
+cd V2-MEDCODE
+git checkout main
+git pull origin main
+ls src/components/MarchTracker.tsx
+npm install
+npm start
+```
+
 ## Development
 
 ```bash
 npm install
-npm run dev
+npm start
 npm run test
 npm run build
 ```
