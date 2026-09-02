@@ -163,6 +163,17 @@ export const scenario001: ScenarioDefinition = {
         marchImpact: 'CONCERN',
       },
       {
+        id: 'finding-environmental-exposure',
+        label: 'Environmental exposure',
+        category: 'H',
+        hidden: false,
+        discovered: false,
+        discoveryConditions: ['expose_left_leg', 'expose_chest', 'expose_left_lower_leg', 'prevent_hypothermia'],
+        observationText:
+          'The casualty is exposed to the environment. Clothing is displaced and the ground is cool.',
+        marchImpact: 'CONCERN',
+      },
+      {
         id: 'finding-compensated-shock',
         label: 'Compensated shock signs',
         category: 'C',
@@ -176,6 +187,9 @@ export const scenario001: ScenarioDefinition = {
     tourniquetsApplied: [],
     chestSealed: false,
     woundPacked: [],
+    hypothermiaPreventionApplied: false,
+    ivAccessInitiated: false,
+    salineLockInitiated: false,
   },
   deteriorationRules: [
     {
@@ -480,6 +494,55 @@ export const scenario001: ScenarioDefinition = {
         ),
     },
     {
+      id: 'score-circulation-access',
+      label: 'IV access or saline lock initiated',
+      category: 'circulation',
+      maxPoints: 15,
+      critical: false,
+      detail: 'Vascular access established with IV or saline lock.',
+      teaching: 'Circulation is completed in this scenario by initiating IV access or a saline lock.',
+      evaluate: (state) => {
+        const done = state.ivAccessInitiated || state.salineLockInitiated;
+        return makeCheck(
+          'score-circulation-access',
+          'IV access or saline lock initiated',
+          'circulation',
+          15,
+          done,
+          false,
+          state.ivAccessInitiated
+            ? 'IV access was initiated.'
+            : state.salineLockInitiated
+              ? 'Saline lock was initiated.'
+              : 'Neither IV access nor a saline lock was initiated.',
+          'Initiate IV access or a saline lock to complete circulation.',
+        );
+      },
+    },
+    {
+      id: 'score-hypothermia-prevention',
+      label: 'Hypothermia prevention performed',
+      category: 'hypothermia',
+      maxPoints: 10,
+      critical: false,
+      detail: 'Casualty covered / insulated after exposure.',
+      teaching: 'After exposure and assessment, protect the casualty from further heat loss.',
+      evaluate: (state) =>
+        makeCheck(
+          'score-hypothermia-prevention',
+          'Hypothermia prevention performed',
+          'hypothermia',
+          10,
+          state.hypothermiaPreventionApplied ||
+            state.performedAssessments.includes('prevent_hypothermia'),
+          false,
+          state.hypothermiaPreventionApplied
+            ? 'Hypothermia prevention measures were applied.'
+            : 'No hypothermia prevention (cover / insulation) was recorded.',
+          'Cover the casualty and insulate from the ground after necessary exposure.',
+        ),
+    },
+    {
       id: 'score-wrong-side',
       label: 'No wrong-side intervention',
       category: 'critical',
@@ -518,7 +581,7 @@ export const scenario001: ScenarioDefinition = {
           .filter((i) => i.requiresTourniquet)
           .every((i) => i.controlled);
         const reassessed = state.events.some((e) => e.action === 'reassess_hemorrhage');
-        return hemorrhageControlled && reassessed && state.elapsedSeconds >= 60;
+        return hemorrhageControlled && reassessed;
       },
     },
     {
@@ -527,6 +590,11 @@ export const scenario001: ScenarioDefinition = {
       check: (state) =>
         state.performedAssessments.includes('request_evacuation') &&
         state.injuries.filter((i) => i.requiresTourniquet).every((i) => i.controlled),
+    },
+    {
+      type: 'evacuation',
+      description: 'Trainee ended the scenario',
+      check: (state) => state.performedAssessments.includes('end_scenario'),
     },
   ],
   failureCriteria: [
@@ -562,10 +630,14 @@ export const scenario001: ScenarioDefinition = {
     reassess_hemorrhage: 10,
     reassess_breathing: 10,
     reassess_circulation: 10,
+    prevent_hypothermia: 15,
+    initiate_iv_access: 20,
+    initiate_saline_lock: 15,
     reassess_airway: 8,
     reassess_general: 15,
     log_roll: 20,
     request_evacuation: 10,
+    end_scenario: 5,
   },
   tcccGuidelineVersionId: 'tccc-pending-verification',
   requiredTcccRules: [
@@ -623,7 +695,12 @@ export const scenario001: ScenarioDefinition = {
     {
       ruleId: 'TCCC-C-001',
       kind: 'assessment_performed',
-      requiredActions: ['check_radial_pulse', 'assess_circulation'],
+      requiredActions: ['initiate_iv_access', 'initiate_saline_lock'],
+    },
+    {
+      ruleId: 'TCCC-H-001',
+      kind: 'assessment_performed',
+      requiredActions: ['prevent_hypothermia'],
     },
     {
       ruleId: 'TCCC-TEV-001',

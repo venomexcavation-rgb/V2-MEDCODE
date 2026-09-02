@@ -31,6 +31,7 @@ export const TACTICAL_FIELD_CARE_RULES: TcccRule[] = [
   pendingTfc('TCCC-A-001', 'Tactical Field Care — airway (pending verification)', 'A'),
   pendingTfc('TCCC-R-001', 'Tactical Field Care — respiration assessment (pending verification)', 'R'),
   pendingTfc('TCCC-R-002', 'Tactical Field Care — open chest wound management (pending verification)', 'R'),
-  pendingTfc('TCCC-C-001', 'Tactical Field Care — circulation / shock assessment (pending verification)', 'C'),
-  pendingTfc('TCCC-H-001', 'Tactical Field Care — hypothermia / head injury (pending verification)', 'H', 'informational'),
+  pendingTfc('TCCC-C-001', 'Tactical Field Care — IV access or saline lock (pending verification)', 'C'),
+  pendingTfc('TCCC-C-002', 'Tactical Field Care — circulation reassessment after hemorrhage control (pending verification)', 'C'),
+  pendingTfc('TCCC-H-001', 'Tactical Field Care — hypothermia prevention (pending verification)', 'H'),
 ];

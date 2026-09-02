@@ -28,6 +28,10 @@ export type ActionType =
   | 'log_roll'
   | 'position_casualty'
   | 'request_evacuation'
+  | 'end_scenario'
+  | 'prevent_hypothermia'
+  | 'initiate_iv_access'
+  | 'initiate_saline_lock'
   | 'unknown';
 
 export interface StructuredAction {
@@ -128,6 +132,9 @@ export interface SimulationState {
   hemorrhageControlledAt?: number;
   massiveHemorrhageIdentifiedAt?: number;
   tourniquetAppliedAt?: number;
+  hypothermiaPreventionApplied: boolean;
+  ivAccessInitiated: boolean;
+  salineLockInitiated: boolean;
   dialogueHistory: string[];
   completionReason?: string;
   aar?: import('@/engine/aar').AARResult;

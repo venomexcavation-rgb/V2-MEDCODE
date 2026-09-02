@@ -148,4 +148,32 @@ describe('TCCC guideline layer', () => {
     expect(state.injuries.find((i) => i.requiresTourniquet)?.controlled).toBe(false);
     expect(state.hemorrhageControlledAt).toBeUndefined();
   });
+
+  it('completes circulation only after IV access or saline lock, not a pulse check', () => {
+    let state = createInitialState(scenario001);
+    state = executeAction(state, { type: 'check_radial_pulse', rawInput: 'check radial pulse' }, scenario001).state;
+    expect(state.marchStatus.C).not.toBe('TREATED');
+    expect(state.marchStatus.C).not.toBe('STABLE');
+
+    const afterIv = executeAction(state, { type: 'initiate_iv_access', rawInput: 'initiate IV access' }, scenario001).state;
+    expect(afterIv.ivAccessInitiated).toBe(true);
+    expect(['TREATED', 'STABLE']).toContain(afterIv.marchStatus.C);
+    expect(evaluateScenarioTcccRules(afterIv, scenario001).results.find((r) => r.ruleId === 'TCCC-C-001')?.outcome).toBe(
+      'completed',
+    );
+
+    let salineState = createInitialState(scenario001);
+    salineState = executeAction(
+      salineState,
+      { type: 'initiate_saline_lock', rawInput: 'initiate saline lock' },
+      scenario001,
+    ).state;
+    expect(salineState.salineLockInitiated).toBe(true);
+    expect(['TREATED', 'STABLE']).toContain(salineState.marchStatus.C);
+  });
+
+  it('parses initiate IV access and initiate saline lock', () => {
+    expect(parseActionInput('Initiate IV access').action?.type).toBe('initiate_iv_access');
+    expect(parseActionInput('Initiate saline lock').action?.type).toBe('initiate_saline_lock');
+  });
 });

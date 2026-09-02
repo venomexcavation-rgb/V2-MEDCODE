@@ -101,6 +101,26 @@ export function CasualtyPanel({ state, scenario }: CasualtyPanelProps) {
         )}
       </div>
 
+      <div className="info-row">
+        <span className="info-label">Vascular access</span>
+        {state.ivAccessInitiated ? (
+          <span className="info-value">IV INITIATED</span>
+        ) : state.salineLockInitiated ? (
+          <span className="info-value">SALINE LOCK INITIATED</span>
+        ) : (
+          <NotAssessed />
+        )}
+      </div>
+
+      <div className="info-row">
+        <span className="info-label">Hypothermia prevention</span>
+        {state.hypothermiaPreventionApplied ? (
+          <span className="info-value">COVERED / INSULATED</span>
+        ) : (
+          <NotAssessed />
+        )}
+      </div>
+
       {discoveredFindings.length > 0 && (
         <>
           <div style={{ margin: '1rem 0 0.5rem', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)' }}>

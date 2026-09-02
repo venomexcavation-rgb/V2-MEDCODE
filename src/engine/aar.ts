@@ -83,6 +83,9 @@ function buildTimeline(events: SimulationEvent[]): TimelineEntry[] {
     'reassess_hemorrhage',
     'reassess_breathing',
     'reassess_circulation',
+    'prevent_hypothermia',
+    'initiate_iv_access',
+    'initiate_saline_lock',
     'request_evacuation',
   ]);
 

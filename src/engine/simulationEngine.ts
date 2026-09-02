@@ -99,13 +99,24 @@ function updateMarchStatus(state: SimulationState): Record<MarchLetter, MarchSta
     'R',
     state.chestSealed || !state.discoveredFindingIds.includes('finding-right-chest-wound'),
   );
-  updateLetter(
-    'C',
-    state.performedAssessments.includes('check_radial_pulse') &&
-      state.physiology.radialPulsePresent &&
-      state.physiology.shockState === 'none',
-  );
-  updateLetter('H', state.performedAssessments.includes('assess_circulation'));
+
+  const vascularAccess =
+    state.ivAccessInitiated ||
+    state.salineLockInitiated ||
+    state.performedAssessments.includes('initiate_iv_access') ||
+    state.performedAssessments.includes('initiate_saline_lock');
+  updateLetter('C', vascularAccess);
+  if (march.C === 'CONCERN' && vascularAccess) {
+    march.C = 'STABLE';
+  }
+
+  const hypothermiaPrevented =
+    state.hypothermiaPreventionApplied ||
+    state.performedAssessments.includes('prevent_hypothermia');
+  updateLetter('H', hypothermiaPrevented);
+  if (march.H === 'CONCERN' && hypothermiaPrevented) {
+    march.H = 'STABLE';
+  }
 
   if (march.M === 'CONCERN' && hemorrhageControlled) march.M = 'STABLE';
 
@@ -557,10 +568,108 @@ export function executeAction(
     }
 
     case 'request_evacuation': {
-      messages.push(`You request evacuation. MEDEVAC coordination initiated. Continue monitoring the casualty.`);
+      messages.push(`You request evacuation. MEDEVAC coordination initiated.`);
       newState.events = [
         ...newState.events,
         createEvent(newState, action.type, 'success', 'Evacuation requested.'),
+      ];
+      break;
+    }
+
+    case 'end_scenario': {
+      messages.push(`You end the scenario and prepare the casualty for handoff.`);
+      newState.events = [
+        ...newState.events,
+        createEvent(newState, action.type, 'success', 'Scenario ended by trainee.'),
+      ];
+      break;
+    }
+
+    case 'initiate_iv_access': {
+      if (newState.ivAccessInitiated || newState.salineLockInitiated) {
+        messages.push(
+          newState.ivAccessInitiated
+            ? 'IV access is already initiated.'
+            : 'Vascular access is already in place via saline lock.',
+        );
+      } else {
+        newState.ivAccessInitiated = true;
+        newState.interventions = [
+          ...newState.interventions,
+          {
+            id: nextEventId(),
+            type: action.type,
+            timestamp: newState.elapsedSeconds,
+            effective: true,
+          },
+        ];
+        messages.push('You initiate IV access.');
+      }
+      newState.events = [
+        ...newState.events,
+        createEvent(newState, action.type, 'success', 'IV access initiated.', {
+          interventionEffective: true,
+          stateChanges: ['iv_access'],
+        }),
+      ];
+      break;
+    }
+
+    case 'initiate_saline_lock': {
+      if (newState.ivAccessInitiated || newState.salineLockInitiated) {
+        messages.push(
+          newState.salineLockInitiated
+            ? 'A saline lock is already in place.'
+            : 'Vascular access is already in place via IV.',
+        );
+      } else {
+        newState.salineLockInitiated = true;
+        newState.interventions = [
+          ...newState.interventions,
+          {
+            id: nextEventId(),
+            type: action.type,
+            timestamp: newState.elapsedSeconds,
+            effective: true,
+          },
+        ];
+        messages.push('You initiate a saline lock.');
+      }
+      newState.events = [
+        ...newState.events,
+        createEvent(newState, action.type, 'success', 'Saline lock initiated.', {
+          interventionEffective: true,
+          stateChanges: ['saline_lock'],
+        }),
+      ];
+      break;
+    }
+
+    case 'prevent_hypothermia': {
+      if (newState.hypothermiaPreventionApplied) {
+        messages.push(`Hypothermia prevention measures are already in place.`);
+      } else {
+        newState.hypothermiaPreventionApplied = true;
+        newState.interventions = [
+          ...newState.interventions,
+          {
+            id: nextEventId(),
+            type: action.type,
+            timestamp: newState.elapsedSeconds,
+            effective: true,
+            notes: 'Cover / insulation applied',
+          },
+        ];
+        messages.push(
+          `You cover the casualty and place insulation between the casualty and the ground. Exposed skin is protected.`,
+        );
+      }
+      newState.events = [
+        ...newState.events,
+        createEvent(newState, action.type, 'success', 'Hypothermia prevention applied.', {
+          interventionEffective: true,
+          stateChanges: ['hypothermia_prevention'],
+        }),
       ];
       break;
     }
