@@ -78,7 +78,7 @@ export function Training() {
     if (!state || !scenario || savedRef.current) return;
     if (state.status === 'completed' || state.status === 'failed') {
       if (state.aar) {
-        saveTrainingRecord(scenario.id, scenario.title, state.aar, state.elapsedSeconds);
+        const record = saveTrainingRecord(scenario.id, scenario.title, state.aar, state.elapsedSeconds);
         savedRef.current = true;
         setLogs((prev) => [
           ...prev,
@@ -89,7 +89,13 @@ export function Training() {
           },
         ]);
         setTimeout(() => {
-          navigate(`/training/${scenario.id}/aar`, { state: { aar: state.aar, scenarioTitle: scenario.title } });
+          navigate(`/training/${scenario.id}/aar`, {
+            state: {
+              aar: state.aar,
+              scenarioTitle: scenario.title,
+              recordId: record.id,
+            },
+          });
         }, 2000);
       }
     }

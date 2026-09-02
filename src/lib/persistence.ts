@@ -27,6 +27,7 @@ export function saveTrainingRecord(
     durationSeconds,
     casualtyOutcome: aar.casualtyOutcome,
     weakAreas,
+    aar,
   };
 
   records.unshift(record);
@@ -42,6 +43,10 @@ export function getTrainingRecords(): TrainingRecord[] {
   } catch {
     return [];
   }
+}
+
+export function getTrainingRecordById(id: string): TrainingRecord | undefined {
+  return getTrainingRecords().find((record) => record.id === id);
 }
 
 export function getPerformanceStats(): PerformanceStats {

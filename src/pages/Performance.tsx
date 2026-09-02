@@ -59,6 +59,9 @@ export function Performance() {
 
       <div className="aar-section">
         <div className="aar-section-title">Session History</div>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+          Open a completed session to review its After Action Review.
+        </p>
         {records.length === 0 ? (
           <div className="card">
             <p style={{ color: 'var(--text-secondary)' }}>No completed scenarios yet.</p>
@@ -68,7 +71,11 @@ export function Performance() {
           </div>
         ) : (
           records.map((record) => (
-            <div key={record.id} className="card" style={{ marginBottom: '0.75rem' }}>
+            <Link
+              key={record.id}
+              to={`/performance/${record.id}`}
+              className="card scenario-card session-history-card"
+            >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <div className="scenario-card-id">{record.scenarioId}</div>
@@ -96,7 +103,10 @@ export function Performance() {
                   ))}
                 </div>
               )}
-            </div>
+              <div className="session-history-cta">
+                {record.aar ? 'Open After Action Review' : 'Open session summary'}
+              </div>
+            </Link>
           ))
         )}
       </div>

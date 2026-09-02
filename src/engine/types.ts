@@ -229,6 +229,8 @@ export interface TrainingRecord {
   durationSeconds: number;
   casualtyOutcome: string;
   weakAreas: string[];
+  /** Full After Action Review. Absent on records saved before history persistence. */
+  aar?: import('@/engine/aar').AARResult;
 }
 
 export interface PerformanceStats {
