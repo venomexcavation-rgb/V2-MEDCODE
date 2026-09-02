@@ -220,6 +220,35 @@ describe('simulation engine', () => {
     expect(aar.overallScore).toBeGreaterThan(0);
     expect(aar.categoryScores.length).toBeGreaterThan(0);
     expect(aar.timeline.length).toBeGreaterThan(0);
+    expect(aar.totalElapsedSeconds).toBe(state.elapsedSeconds);
+    const marchTimeTotal = Object.values(aar.marchTimeSeconds ?? {}).reduce((sum, n) => sum + n, 0);
+    expect(marchTimeTotal).toBe(aar.totalElapsedSeconds);
+    expect(aar.marchTimeSeconds?.M).toBe(aar.totalElapsedSeconds);
+  });
+
+  it('attributes AAR MARCH time to later letters after hemorrhage control', () => {
+    let state = createInitialState(scenario001);
+    state = executeAction(state, { type: 'blood_sweep', rawInput: 'blood sweep' }, scenario001).state;
+    state = executeAction(
+      state,
+      {
+        type: 'apply_tourniquet',
+        location: 'left_leg',
+        parameters: { placement: 'high_and_tight' },
+        rawInput: 'tq left leg high and tight',
+      },
+      scenario001,
+    ).state;
+    state = executeAction(state, { type: 'assess_airway', rawInput: 'assess airway' }, scenario001).state;
+    state = executeAction(state, { type: 'assess_breathing', rawInput: 'assess breathing' }, scenario001).state;
+
+    const aar = generateAAR(state, scenario001);
+    const times = aar.marchTimeSeconds!;
+    expect(times.M + times.A + times.R + times.C + times.H).toBe(aar.totalElapsedSeconds);
+    expect(times.M).toBeGreaterThan(0);
+    expect(times.A).toBeGreaterThan(0);
+    expect(times.R).toBeGreaterThan(0);
+    expect(times.M).toBeGreaterThan(times.A);
   });
 
   it('withholds TXA until a saline lock is in place, then completes circulation', () => {

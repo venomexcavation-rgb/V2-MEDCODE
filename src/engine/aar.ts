@@ -1,6 +1,8 @@
 import type {
+  ActionType,
   CategoryScore,
   CheckResult,
+  MarchLetter,
   PerformanceBand,
   SimulationEvent,
   SimulationState,
@@ -15,6 +17,10 @@ export interface AARResult {
   overallScore: number;
   performanceBand: PerformanceBand;
   timeToCriticalIntervention?: number;
+  /** Wall-clock scenario duration in seconds. */
+  totalElapsedSeconds?: number;
+  /** Time attributed to each MARCH letter from trainee actions. Sums to totalElapsedSeconds. */
+  marchTimeSeconds?: Record<MarchLetter, number>;
   categoryScores: CategoryScore[];
   marchScores: Record<'M' | 'A' | 'R' | 'C' | 'H', number>;
   criticalErrors: CheckResult[];
@@ -160,6 +166,72 @@ function detectSequenceDeviations(state: SimulationState): string[] {
   return deviations;
 }
 
+const MARCH_ACTION_LETTER: Partial<Record<ActionType, MarchLetter>> = {
+  assess_massive_hemorrhage: 'M',
+  blood_sweep: 'M',
+  apply_tourniquet: 'M',
+  pack_wound: 'M',
+  reassess_hemorrhage: 'M',
+  assess_airway: 'A',
+  reassess_airway: 'A',
+  assess_breathing: 'R',
+  check_respirations: 'R',
+  check_penetrating_chest_trauma: 'R',
+  apply_chest_seal: 'R',
+  needle_decompression: 'R',
+  reassess_breathing: 'R',
+  assess_circulation: 'C',
+  check_radial_pulse: 'C',
+  initiate_iv_access: 'C',
+  initiate_saline_lock: 'C',
+  administer_txa: 'C',
+  administer_whole_blood: 'C',
+  reassess_circulation: 'C',
+  prevent_hypothermia: 'H',
+};
+
+function marchLetterForEvent(event: SimulationEvent): MarchLetter | undefined {
+  if (event.action === 'expose' || event.action === 'visual_inspection') {
+    const loc = event.location ?? '';
+    if (loc.includes('chest')) return 'R';
+    if (
+      loc.includes('leg') ||
+      loc.includes('thigh') ||
+      loc.includes('foot') ||
+      loc.includes('arm') ||
+      loc.includes('hand')
+    ) {
+      return 'M';
+    }
+    return undefined;
+  }
+  return MARCH_ACTION_LETTER[event.action];
+}
+
+export function buildMarchTimeSeconds(state: SimulationState): Record<MarchLetter, number> {
+  const times: Record<MarchLetter, number> = { M: 0, A: 0, R: 0, C: 0, H: 0 };
+  const elapsed = Math.max(0, Math.floor(state.elapsedSeconds));
+  if (elapsed === 0) return times;
+
+  const mapped = state.events
+    .map((event) => ({ t: Math.max(0, event.timestamp), letter: marchLetterForEvent(event) }))
+    .filter((event): event is { t: number; letter: MarchLetter } => event.letter !== undefined)
+    .sort((a, b) => a.t - b.t);
+
+  let last = 0;
+  let current: MarchLetter = 'M';
+
+  for (const event of mapped) {
+    const t = Math.min(event.t, elapsed);
+    times[event.letter] += Math.max(0, t - last);
+    current = event.letter;
+    last = t;
+  }
+
+  times[current] += Math.max(0, elapsed - last);
+  return times;
+}
+
 function buildMarchScores(categoryScores: CategoryScore[]): Record<'M' | 'A' | 'R' | 'C' | 'H', number> {
   const map: Record<string, 'M' | 'A' | 'R' | 'C' | 'H'> = {
     hemorrhage: 'M',
@@ -291,6 +363,8 @@ export function generateAAR(
     overallScore,
     performanceBand: getPerformanceBand(overallScore),
     timeToCriticalIntervention: state.tourniquetAppliedAt,
+    totalElapsedSeconds: Math.max(0, Math.floor(state.elapsedSeconds)),
+    marchTimeSeconds: buildMarchTimeSeconds(state),
     categoryScores,
     marchScores,
     criticalErrors,

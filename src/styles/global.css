@@ -765,3 +765,77 @@ textarea {
   text-transform: uppercase;
   color: var(--stable-text);
 }
+
+.march-time-bar {
+  display: flex;
+  width: 100%;
+  height: 1.75rem;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+}
+
+.march-time-seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: 100%;
+  font-family: var(--font-condensed);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-primary);
+}
+
+.march-time-M {
+  background: var(--critical);
+}
+
+.march-time-A {
+  background: #3d536b;
+}
+
+.march-time-R {
+  background: var(--warning);
+}
+
+.march-time-C {
+  background: var(--stable);
+}
+
+.march-time-H {
+  background: var(--olive);
+}
+
+.march-time-legend {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.march-time-legend-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+}
+
+.march-time-swatch {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 1px;
+}
+
+.march-time-legend-meta {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+  .march-time-legend {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

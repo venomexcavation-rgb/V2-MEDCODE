@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useLayoutEffect } from 'react';
 import { MarchTracker } from '@/components/MarchTracker';
+import { MarchTimeBar } from '@/components/MarchTimeBar';
 import type { AARResult } from '@/engine/aar';
 import { formatDuration } from '@/lib/formatDuration';
 
@@ -68,13 +69,19 @@ export function AARView({
         </div>
       </div>
 
-      <div className="card-grid grid-2" style={{ marginBottom: '2rem' }}>
+      <div className="card-grid grid-3" style={{ marginBottom: '2rem' }}>
         <div className="card">
           <div className="stat-label">Overall Performance</div>
           <div className="aar-score-large">{aar.overallScore}</div>
           <span className={`performance-band ${bandClass(aar.performanceBand)}`}>
             {aar.performanceBand}
           </span>
+        </div>
+        <div className="card">
+          <div className="stat-label">Total Time Elapsed</div>
+          <div className="stat-value">
+            {aar.totalElapsedSeconds !== undefined ? formatDuration(aar.totalElapsedSeconds) : '—'}
+          </div>
         </div>
         <div className="card">
           <div className="stat-label">Time to Critical Intervention</div>
@@ -93,6 +100,20 @@ export function AARView({
           scores={aar.marchScores}
         />
       </div>
+
+      {aar.marchTimeSeconds && aar.totalElapsedSeconds !== undefined && (
+        <div className="aar-section">
+          <div className="aar-section-title">MARCH Time</div>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+            Share of the {formatDuration(aar.totalElapsedSeconds)} scenario spent in each MARCH
+            letter, from the order of your assessments and interventions.
+          </p>
+          <MarchTimeBar
+            totalSeconds={aar.totalElapsedSeconds}
+            marchTimeSeconds={aar.marchTimeSeconds}
+          />
+        </div>
+      )}
 
       {aar.criticalErrors.length > 0 && (
         <div className="aar-section">
