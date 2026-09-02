@@ -20,7 +20,7 @@ const ACTION_PATTERNS: { pattern: RegExp; type: ActionType; needsLocation?: bool
   { pattern: /radial\s*pulse|check\s*pulse|feel\s*(for\s*)?pulse/, type: 'check_radial_pulse' },
   { pattern: /check\s*respirations|count\s*respirations|respiratory\s*rate/, type: 'check_respirations' },
   { pattern: /penetrating\s*chest|sucking\s*chest|chest\s*trauma|open\s*chest\s*wound|entry\s*wound/, type: 'check_penetrating_chest_trauma', needsLocation: true },
-  { pattern: /tourniquet|tq|high\s*and\s*tight|stop\s*the\s*bleeding/, type: 'apply_tourniquet', needsLocation: true },
+  { pattern: /tourniquet|torniquet|tq|high\s*and\s*tight|hasty\s+(?:tourniquet|torniquet|tq)|stop\s*the\s*bleeding/, type: 'apply_tourniquet', needsLocation: true },
   { pattern: /pack\s*(the\s*)?wound|wound\s*pack|hemostatic|gauze\s*pack/, type: 'pack_wound', needsLocation: true },
   { pattern: /chest\s*seal|occlusive\s*dressing|seal\s*(the\s*)?chest/, type: 'apply_chest_seal', needsLocation: true },
   { pattern: /needle\s*decompression|decompress|nct/, type: 'needle_decompression', needsLocation: true },
@@ -63,7 +63,7 @@ function hasFourFiftyWholeBloodVolume(input: string): boolean {
 function extractParameters(input: string, type: ActionType): Record<string, string | boolean | number> {
   const params: Record<string, string | boolean | number> = {};
   if (type === 'apply_tourniquet') {
-    if (/high\s*and\s*tight|high\s*&\s*tight/i.test(input)) {
+    if (/high\s*and\s*tight|high\s*&\s*tight|hasty\s+(?:tourniquet|torniquet|tq)/i.test(input)) {
       params.placement = 'high_and_tight';
     }
   }

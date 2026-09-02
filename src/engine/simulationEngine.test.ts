@@ -42,6 +42,14 @@ describe('parseActionInput', () => {
     expect(result.action?.location).toBe('left_leg');
   });
 
+  it('accepts hasty tourniquet as a high-and-tight passkey', () => {
+    const result = parseActionInput('Apply a hasty tourniquet to the right leg');
+    expect(result.success).toBe(true);
+    expect(result.action?.type).toBe('apply_tourniquet');
+    expect(result.action?.location).toBe('right_leg');
+    expect(result.action?.parameters?.placement).toBe('high_and_tight');
+  });
+
   it('parses administer 2 grams TXA and asks for the dose otherwise', () => {
     const parsed = parseActionInput('administer 2 grams TXA');
     expect(parsed.success).toBe(true);
@@ -123,6 +131,17 @@ describe('simulation engine', () => {
     );
     expect(result.state.injuries.find((i) => i.id === 'inj-right-thigh-gsw')?.controlled).toBe(false);
     expect(result.messages.some((m) => m.includes('continues elsewhere'))).toBe(true);
+  });
+
+  it('controls scenario 003 hemorrhage with a hasty tourniquet on the affected limb', () => {
+    let state = createInitialState(scenario003);
+    state = executeAction(state, { type: 'blood_sweep', rawInput: 'blood sweep' }, scenario003).state;
+    const parsed = parseActionInput('Apply a hasty tourniquet to the right leg');
+    expect(parsed.success).toBe(true);
+
+    const result = executeAction(state, parsed.action!, scenario003);
+    expect(result.state.injuries.find((i) => i.id === 'inj-right-thigh-gsw')?.controlled).toBe(true);
+    expect(result.state.interventions.at(-1)?.parameters?.placement).toBe('high_and_tight');
   });
 
   it('rejects wrong-side tourniquet', () => {
