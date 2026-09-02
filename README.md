@@ -20,6 +20,7 @@ AI handles interaction. Deterministic code handles medical truth.
 
 - Dashboard: https://venomexcavation-rgb.github.io/V2-MEDCODE/
 - Scenario 001: https://venomexcavation-rgb.github.io/V2-MEDCODE/training/SCENARIO-001
+- Scenario 003: https://venomexcavation-rgb.github.io/V2-MEDCODE/training/SCENARIO-003
 
 ## Development
 
@@ -44,7 +45,7 @@ Codex reads `AGENTS.md` for project context and `src/engine/AGENTS.md` for simul
 ## V1 Features
 
 - Dashboard with MARCH performance tracking
-- Scenario library with Scenario 001 (Dismounted Blast Casualty)
+- Scenario library with Scenario 001 (Dismounted Blast Casualty) and Scenario 003 (Gunshot Wound — Urban)
 - Natural-language command interface with structured action parsing
 - Hidden finding discovery system
 - Anatomical location validation
