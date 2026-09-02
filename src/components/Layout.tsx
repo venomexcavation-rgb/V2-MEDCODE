@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { ScrollToTop } from './ScrollToTop';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard' },
@@ -10,6 +11,7 @@ const NAV_ITEMS = [
 export function Layout() {
   return (
     <div className="app-layout">
+      <ScrollToTop />
       <nav className="app-nav">
         <div className="nav-brand">68W Training System</div>
         <div className="nav-links">

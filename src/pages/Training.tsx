@@ -102,7 +102,10 @@ export function Training() {
   }, [state, scenario, navigate]);
 
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const log = logEndRef.current?.closest('.sim-log');
+    if (log instanceof HTMLElement) {
+      log.scrollTop = log.scrollHeight;
+    }
   }, [logs]);
 
   const addLog = useCallback((type: LogEntry['type'], text: string) => {

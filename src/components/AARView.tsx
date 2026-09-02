@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useLayoutEffect } from 'react';
 import { MarchTracker } from '@/components/MarchTracker';
 import type { AARResult } from '@/engine/aar';
 import { formatDuration } from '@/lib/formatDuration';
@@ -35,6 +36,11 @@ export function AARView({
   secondaryTo,
   secondaryLabel,
 }: AARViewProps) {
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, []);
   return (
     <div>
       <header className="page-header">
