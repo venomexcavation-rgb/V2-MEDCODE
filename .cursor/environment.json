@@ -1,11 +1,5 @@
 {
-  "name": "68W Training Platform",
+  "name": "AIDBAG Field Desk",
   "install": "npm install",
-  "start": "npm run dev -- --host 0.0.0.0 --port 5173",
-  "ports": [
-    {
-      "name": "web",
-      "port": 5173
-    }
-  ]
+  "start": "npx tsx --tsconfig tsconfig.app.json src/cli/main.ts"
 }

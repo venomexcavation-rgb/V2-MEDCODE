@@ -108,7 +108,7 @@ For deeper GitHub integration from Codex, add to `~/.codex/mcp.json`:
 ## Verify it works
 
 1. Codex sidebar is visible in Cursor
-2. `npm run dev` serves the app at http://localhost:5173
+2. `npm start` opens AIDBAG in the Cursor terminal (no browser)
 3. Ask Codex: **"List the main files in src/engine and summarize what executeAction does."**
 4. Codex should read the codebase and respond with accurate file references
 
