@@ -1,32 +1,14 @@
 # AIDBAG
 
-Field casualty training desk that runs **inside Cursor’s terminal**. No browser. No localhost. No extra windows.
+Casualty trainer for Cursor. Open **http://localhost:5173** in Cursor’s preview.
 
-**Training use only.** This simulates casualty care for education. It is not medical advice and is not for real patients.
+**Training use only.** Not for real-patient care.
 
-## How to use it (this Cursor window)
+## In this Cursor window
 
-1. Open the Terminal panel in Cursor (same window as this project).
-2. Type `npm start` and press Return. If dependencies are missing, run `npm install` once first.
-3. Type `1` or `2` to pick a scenario.
-4. Type what a medic would do, like `Check for massive hemorrhage`.
-5. Type `help` if you get stuck. Type `q` at the menu to quit.
-
-Stay in this window. The desk prints the casualty, MARCH status, and After Action Review here.
-
-## Architecture
-
-AI (or you) types actions. Deterministic code owns medical truth.
-
-| Area | Path |
-|------|------|
-| Desk (this app) | `src/cli/` |
-| Simulation engine | `src/engine/` |
-| Action parser | `src/engine/actionParser.ts` |
-| AAR / scoring | `src/engine/aar.ts` |
-| Scenarios | `src/scenarios/` |
-
-## Commands
+1. The app starts on port **5173**.
+2. Open Cursor’s localhost preview for port 5173 (or Simple Browser → `http://localhost:5173`).
+3. Click **Scenarios**, then **Gunshot Wound — Urban**.
 
 ```bash
 npm install
@@ -34,8 +16,4 @@ npm start
 npm test
 ```
 
-## Scenarios
-
-- SCENARIO-001 Dismounted Blast Casualty
-- SCENARIO-003 Gunshot Wound — Urban
-- SCENARIO-002 Vehicle Roll-Over (coming soon)
+`npm start` is the Vite app on http://localhost:5173
