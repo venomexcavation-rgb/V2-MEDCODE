@@ -14,11 +14,19 @@ export default defineConfig({
     },
   },
   server: {
+    // true = listen on 0.0.0.0 so Cursor port-forward and LAN clients can connect.
     host: true,
+    port: 5173,
+    strictPort: true,
+    // Cursor cloud / mobile previews send *.cursorvm.com (and other forwarded Host headers).
     allowedHosts: true,
+    cors: true,
   },
   preview: {
     host: true,
+    port: 4173,
+    strictPort: true,
     allowedHosts: true,
+    cors: true,
   },
 });
