@@ -22,12 +22,17 @@ AI handles interaction. Deterministic code handles medical truth.
 - Scenario 001: https://venomexcavation-rgb.github.io/V2-MEDCODE/training/SCENARIO-001
 - Scenario 003: https://venomexcavation-rgb.github.io/V2-MEDCODE/training/SCENARIO-003
 
-## Run it on your computer
+## Run it on your computer (localhost)
 
-The public GitHub Pages link is not live yet, so run it locally:
+Cloud Agent previews of `localhost:5173` can fail with connection reset. For real localhost, run the app on **your** computer in Cursor Desktop:
 
 1. Install **Node.js LTS** from https://nodejs.org (this also installs `npm`).
-2. Open a terminal in an empty folder and run:
+2. In Cursor: **File → Clone Repository** (or **Open Folder** if you already have it) and use `https://github.com/venomexcavation-rgb/V2-MEDCODE.git`.
+3. Open the `V2-MEDCODE` folder (the one with `package.json`). Allow automatic tasks if Cursor asks.
+4. Wait until the terminal shows the server is ready, then open **http://localhost:5173**.
+5. Click **Scenarios**, then **Gunshot Wound — Urban** (SCENARIO-003).
+
+You can also start it from a terminal:
 
 ```bash
 git clone https://github.com/venomexcavation-rgb/V2-MEDCODE.git
@@ -37,9 +42,6 @@ git pull origin main
 npm install
 npm start
 ```
-
-3. Leave that terminal open. When it says the server is ready, open **http://localhost:5173** in your browser.
-4. Click **Scenarios**, then **Gunshot Wound — Urban** (SCENARIO-003).
 
 You must be in the folder that contains `package.json` and `src/components/MarchTracker.tsx`. Do not use the `gh-pages` branch.
 
