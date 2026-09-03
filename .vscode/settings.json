@@ -1,0 +1,4 @@
+{
+  "simpleBrowser.defaultUrl": "http://localhost:5173/",
+  "task.allowAutomaticTasks": "on"
+}

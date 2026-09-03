@@ -1,8 +1,33 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import type { TrainingRecord, PerformanceStats, MarchLetter } from '@/engine/types';
 import type { AARResult } from '@/engine/aar';
 import type { PerformanceBand } from '@/engine/types';
 
 const STORAGE_KEY = '68w-training-records';
+const FILE_STORE = path.join(process.cwd(), '.aidbag', 'records.json');
+
+function canUseLocalStorage(): boolean {
+  try {
+    return typeof globalThis.localStorage !== 'undefined' && globalThis.localStorage !== null;
+  } catch {
+    return false;
+  }
+}
+
+function readFileRecords(): TrainingRecord[] {
+  try {
+    if (!fs.existsSync(FILE_STORE)) return [];
+    return JSON.parse(fs.readFileSync(FILE_STORE, 'utf8')) as TrainingRecord[];
+  } catch {
+    return [];
+  }
+}
+
+function writeFileRecords(records: TrainingRecord[]): void {
+  fs.mkdirSync(path.dirname(FILE_STORE), { recursive: true });
+  fs.writeFileSync(FILE_STORE, JSON.stringify(records, null, 2));
+}
 
 export function saveTrainingRecord(
   scenarioId: string,
@@ -31,15 +56,23 @@ export function saveTrainingRecord(
   };
 
   records.unshift(record);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(records.slice(0, 50)));
+  const next = records.slice(0, 50);
+  if (canUseLocalStorage()) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  } else {
+    writeFileRecords(next);
+  }
   return record;
 }
 
 export function getTrainingRecords(): TrainingRecord[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as TrainingRecord[];
+    if (canUseLocalStorage()) {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      return JSON.parse(raw) as TrainingRecord[];
+    }
+    return readFileRecords();
   } catch {
     return [];
   }

@@ -14,11 +14,23 @@ export default defineConfig({
     },
   },
   server: {
+    // Cursor Simple Browser / cloud preview uses this port as localhost:5173.
     host: true,
+    port: 5173,
+    strictPort: true,
     allowedHosts: true,
+    cors: true,
+    hmr: {
+      protocol: 'ws',
+      host: 'localhost',
+      clientPort: 5173,
+    },
   },
   preview: {
     host: true,
+    port: 4173,
+    strictPort: true,
     allowedHosts: true,
+    cors: true,
   },
 });

@@ -12,6 +12,7 @@ This is a **training simulator**, not clinical software.
 
 ## Architecture
 
+- Desk UI: `src/cli/` (Cursor terminal — no localhost browser)
 - Scenario data: `src/scenarios/`
 - Action parser: `src/engine/actionParser.ts`
 - Simulation engine (medical truth): `src/engine/simulationEngine.ts`
