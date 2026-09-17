@@ -22,11 +22,20 @@ AI handles interaction. Deterministic code handles medical truth.
 - Scenario 001: https://venomexcavation-rgb.github.io/V2-MEDCODE/training/SCENARIO-001
 - Scenario 003: https://venomexcavation-rgb.github.io/V2-MEDCODE/training/SCENARIO-003
 
+## Localhost (Cursor preview)
+
+```bash
+npm install
+npm start
+```
+
+Then open **http://localhost:5173** in Cursor’s preview. Click **Scenarios**, then **Gunshot Wound — Urban**.
+
 ## Development
 
 ```bash
 npm install
-npm run dev
+npm start
 npm run test
 npm run build
 ```
